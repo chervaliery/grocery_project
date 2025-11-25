@@ -5,13 +5,13 @@ from .models import GroceryList, Item, Section
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'order']
 
 class ItemSerializer(serializers.ModelSerializer):
     section = SectionSerializer()
     class Meta:
         model = Item
-        fields = ['id', 'name', 'checked', 'section']
+        fields = ['id', 'name', 'order', 'checked', 'section']
 
 class GroceryListSerializer(serializers.ModelSerializer):
     items = ItemSerializer(many=True, read_only=True)
