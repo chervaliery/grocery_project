@@ -1,6 +1,7 @@
 {% load static %}
 <!doctype html>
 <html ng-app="groceryApp">
+
 <head>
   <meta charset="utf-8" />
   <title>Family Grocery — Live</title>
@@ -9,6 +10,7 @@
   <link rel="stylesheet" href="{% static 'lists_app/css/style.css' %}">
 
 </head>
+
 <body ng-app="groceryApp" ng-controller="MainCtrl as vm">
   {% csrf_token %}
   <div class="theme-switch-wrapper" style="text-align:right; margin-bottom:1rem;">
@@ -48,38 +50,52 @@
       </div>
 
       <div class="items">
-        <div class="item" ng-repeat="it in vm.items track by it.id">
-          <input type="checkbox" ng-model="it.checked" ng-change="vm.toggle(it)" />
-          <input type="text" ng-model="it.name" placeholder="Item name"
-                ng-class="{'checked': it.checked}"
-                ng-change="vm.queueUpdate(it)" ng-blur="vm.commitUpdate(it)" />
 
-          <div class="section-select">
-          <select
-            ng-options="option as option.name for option in vm.sections track by option.id"
-            ng-model="it.section"
-            ng-change="vm.queueUpdate(it)"
-            ng-blur="vm.commitUpdate(it)">
-              <option value="">-- No section --</option>
-          </select>
+        <div ng-repeat="(sectionName, groupItems) in vm.grouped">
+
+          <!-- Skip empty groups -->
+          <div ng-if="groupItems.length > 0">
+
+            <!-- Section title -->
+            <h3 ng-if="sectionName !== '_none'">{[ sectionName ]}</h3>
+            <h3 ng-if="sectionName === '_none'">Uncategorized</h3>
+
+            <!-- Items inside this section -->
+            <div class="item" ng-repeat="it in groupItems track by it.id">
+              <input type="checkbox" ng-model="it.checked" ng-change="vm.toggle(it)" />
+
+              <input type="text"
+                ng-model="it.name"
+                  ng-change="vm.queueUpdate(it)"
+                  ng-blur="vm.commitUpdate(it)"
+                  ng-class="{'checked': it.checked}" />
+
+              <div class="section-select">
+                <select
+                  ng-options="s as s.name for s in vm.sections track by s.id"
+                  ng-model="it.section"
+                  ng-change="vm.queueUpdate(it)"
+                  ng-blur="vm.commitUpdate(it)">
+                    <option value="">-- No section --</option>
+                </select>
+              </div>
+
+              <button ng-click="vm.remove(it)">✕</button>
+            </div>
           </div>
-
-          <button ng-click="vm.remove(it)">✕</button>
         </div>
 
         <!-- New item row -->
         <div class="item new-item">
           <input type="checkbox" disabled />
           <input type="text" ng-model="vm.newItem.name" placeholder="Add new item..."
-                ng-keypress="vm.handleKey($event)" ng-blur="vm.handleBlur()" />
+              ng-keypress="vm.handleKey($event)" ng-blur="vm.handleBlur()" />
 
           <div class="section-select">
-          <select
-            ng-options="option as option.name for option in vm.sections track by option.id"
-            ng-model="vm.newItem.section"
-            ng-keypress="vm.handleKey($event)" ng-blur="vm.handleBlur()" >
+            <select ng-options="option as option.name for option in vm.sections track by option.id"
+              ng-model="vm.newItem.section" ng-keypress="vm.handleKey($event)" ng-blur="vm.handleBlur()">
               <option value="">-- No section --</option>
-          </select>
+            </select>
           </div>
           <button disabled>✕</button>
         </div>
@@ -87,4 +103,5 @@
     </div>
   </div>
 </body>
+
 </html>
