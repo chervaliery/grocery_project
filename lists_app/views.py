@@ -15,6 +15,7 @@ class ItemViewSet(viewsets.ModelViewSet):
 
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()
+    ordering = ['order']
     serializer_class = SectionSerializer
 
 def home(request):

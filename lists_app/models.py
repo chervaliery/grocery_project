@@ -10,10 +10,12 @@ class GroceryList(models.Model):
 
 class Section(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    order = models.IntegerField()
 
     def to_dict(self):
         return {
             "id": self.id,
+            "order": self.order,
             "name": self.name
         }
 
@@ -24,6 +26,7 @@ class Section(models.Model):
 class Item(models.Model):
     grocery_list = models.ForeignKey(GroceryList, related_name='items', on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
+    order = models.IntegerField()
     checked = models.BooleanField(default=False)
     section = models.ForeignKey(Section, null=True, blank=True, on_delete=models.SET_NULL)
     updated_at = models.DateTimeField(auto_now=True)
@@ -33,6 +36,7 @@ class Item(models.Model):
             "id": self.id,
             "grocery_list_id": self.grocery_list_id,
             "name": self.name,
+            "order": self.order,
             "checked": self.checked,
             "section": self.section.to_dict() if self.section else None,
             "updated_at": self.updated_at.isoformat(),

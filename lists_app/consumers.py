@@ -31,7 +31,8 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
             if section:
                 section_id = section.get("id", None)
                 section = await sync_to_async(Section.objects.filter(id=section_id).first)()
-            item = await sync_to_async(Item.objects.create)(grocery_list_id=self.list_id, name=name, section=section)
+            order = item_data.get("order", 9999)
+            item = await sync_to_async(Item.objects.create)(grocery_list_id=self.list_id, name=name, section=section, order=order)
             data = item.to_dict()
             await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action":"added","item":data}})
         elif action == "update":
@@ -42,6 +43,8 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
             if not item:
                 return
             item.name = item_data.get("name", item.name)
+            order = item_data.get("order", item.order)
+            item.order = order
             section = item_data.get("section", None)
             if section:
                 section_id = section.get("id", None)

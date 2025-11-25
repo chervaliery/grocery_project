@@ -15,14 +15,14 @@ class SectionAdmin(admin.ModelAdmin):
     """
     Admin interface for the Section model.
     """
-    list_display = ('id', 'name')
+    list_display = ('id', 'name', 'order')
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     """
     Admin interface for the Item model.
     """
-    list_display = ('id', 'get_grocery_list', 'name', 'get_section', 'checked', 'updated_at')
+    list_display = ('id', 'get_grocery_list', 'name', 'get_section', 'order', 'checked', 'updated_at')
 
     def get_grocery_list(self, obj):
         link = reverse("admin:lists_app_grocerylist_change", args=[obj.grocery_list.pk])
