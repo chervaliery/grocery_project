@@ -138,6 +138,22 @@ angular.module('groceryApp', [])
             });
         };
 
+        function regroup() {
+            vm.grouped = {};
+
+            vm.items.forEach(item => {
+                const key = item.section ? item.section.name : "_none";
+                if (!vm.grouped[key]) vm.grouped[key] = [];
+                vm.grouped[key].push(item);
+            });
+        }
+
+        // Call regroup() whenever vm.items changes
+        $scope.$watch(
+            () => vm.items,
+            () => regroup(),
+            true
+        );
         // Load initial list overview
         vm.loadLists();
         vm.loadSections();
