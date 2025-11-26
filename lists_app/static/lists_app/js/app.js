@@ -13,12 +13,291 @@ angular.module('groceryApp', [])
         vm.items = [];
         vm.socket = null;
         vm.connected = false;
-        vm.newItem = { name: '', section: null};
+        vm.newItem = { name: '', section: null };
         vm.pending = {};
         vm.sections = [];
         vm.grouped = {};
         vm.sectionOrder = [];
+        vm._lastSnapshot = {};
         vm.noneSectionName = '_none';
+
+        // Drag and drop state
+        vm.draggedItem = null;
+        vm.draggedSection = null;
+        vm.dragOverItem = null;
+        vm.dragOverSection = null;
+
+        // ===== Drag and Drop Handlers =====
+        vm.initDragAndDrop = function () {
+            document.addEventListener('dragstart', function (e) {
+                console.log('Drag start on:', e.target);
+
+                if (e.target.classList.contains('drag-handle')) {
+                    const handle = e.target;
+
+                    if (handle.classList.contains('item-drag-handle')) {
+                        const itemId = handle.getAttribute('data-item-id');
+                        console.log('Found item drag handle for ID:', itemId);
+                        vm.draggedItem = vm.items.find(it => it.id == itemId);
+                        if (vm.draggedItem) {
+                            e.dataTransfer.setData('text/plain', 'item:' + itemId);
+                            e.dataTransfer.effectAllowed = 'move';
+                            console.log('Drag start - item:', vm.draggedItem.name);
+                        } else {
+                            console.error('Could not find item with ID:', itemId);
+                        }
+                    } else if (handle.classList.contains('section-drag-handle')) {
+                        const sectionName = handle.getAttribute('data-section-name');
+                        vm.draggedSection = sectionName;
+                        e.dataTransfer.setData('text/plain', 'section:' + sectionName);
+                        e.dataTransfer.effectAllowed = 'move';
+                        console.log('Drag start - section:', vm.draggedSection);
+                    }
+
+                    // Add visual feedback
+                    handle.style.opacity = '0.4';
+                }
+            });
+
+            document.addEventListener('dragend', function (e) {
+                console.log('Drag end');
+                if (e.target.classList.contains('drag-handle')) {
+                    e.target.style.opacity = '1';
+                    vm.draggedItem = null;
+                    vm.draggedSection = null;
+                    vm.dragOverItem = null;
+                    vm.dragOverSection = null;
+
+                    // Remove all drag-over classes
+                    document.querySelectorAll('.drag-over, .section-drag-over').forEach(el => {
+                        el.classList.remove('drag-over', 'section-drag-over');
+                    });
+                }
+            });
+
+            document.addEventListener('dragover', function (e) {
+                e.preventDefault(); // Necessary to allow drop
+
+                if (vm.draggedItem || vm.draggedSection) {
+                    e.dataTransfer.dropEffect = 'move';
+
+                    // Remove previous drag-over classes
+                    document.querySelectorAll('.drag-over, .section-drag-over').forEach(el => {
+                        el.classList.remove('drag-over', 'section-drag-over');
+                    });
+
+                    // Find the closest item or section container
+                    let targetElement = e.target;
+
+                    while (targetElement && targetElement !== document) {
+                        // Check if it's an item element
+                        if (targetElement.classList && targetElement.classList.contains('item') && targetElement.hasAttribute('data-item-id')) {
+                            const itemId = targetElement.getAttribute('data-item-id');
+                            const item = vm.items.find(it => it.id == itemId);
+                            if (item && vm.draggedItem && item.id !== vm.draggedItem.id) {
+                                vm.dragOverItem = item;
+                                targetElement.classList.add('drag-over');
+                                console.log('Drag over item:', item.name);
+                                break;
+                            }
+                        }
+                        // Check if it's a section container
+                        else if (targetElement.classList && targetElement.classList.contains('section-container')) {
+                            const sectionName = targetElement.getAttribute('data-section-name');
+                            if (vm.draggedSection && sectionName !== vm.draggedSection && sectionName !== vm.noneSectionName) {
+                                vm.dragOverSection = sectionName;
+                                targetElement.classList.add('section-drag-over');
+                                console.log('Drag over section:', sectionName);
+                                break;
+                            } else if (vm.draggedItem) {
+                                // Item being dragged over a section container
+                                targetElement.classList.add('drag-over');
+                                console.log('Drag over section container for item');
+                                break;
+                            }
+                        }
+                        targetElement = targetElement.parentElement;
+                    }
+                }
+            });
+
+            document.addEventListener('drop', function (e) {
+                e.preventDefault();
+                console.log('Drop event - draggedItem:', vm.draggedItem, 'dragOverItem:', vm.dragOverItem, 'draggedSection:', vm.draggedSection, 'dragOverSection:', vm.dragOverSection);
+
+                if (vm.draggedItem && vm.dragOverItem) {
+                    // Item dropped on another item - reorder items
+                    console.log('Dropping item on item:', vm.draggedItem.name, '->', vm.dragOverItem.name);
+                    vm.handleItemDrop(vm.draggedItem, vm.dragOverItem);
+                } else if (vm.draggedSection && vm.dragOverSection) {
+                    // Section dropped on another section - reorder sections
+                    console.log('Dropping section on section:', vm.draggedSection, '->', vm.dragOverSection);
+                    vm.handleSectionDrop(vm.draggedSection, vm.dragOverSection);
+                } else if (vm.draggedItem) {
+                    // Item dropped in empty space or section area
+                    console.log('Item dropped in empty space, looking for section...');
+                    let targetElement = e.target;
+                    let targetSection = null;
+
+                    // Traverse up to find section container
+                    while (targetElement && targetElement !== document) {
+                        if (targetElement.classList && targetElement.classList.contains('section-container')) {
+                            const sectionName = targetElement.getAttribute('data-section-name');
+                            targetSection = vm.getSectionByName(sectionName);
+                            console.log('Found target section:', targetSection ? targetSection.name : 'none');
+                            break;
+                        }
+                        targetElement = targetElement.parentElement;
+                    }
+
+                    if (targetSection) {
+                        const currentSectionName = vm.draggedItem.section ? vm.draggedItem.section.name : vm.noneSectionName;
+                        const targetSectionName = targetSection ? targetSection.name : vm.noneSectionName;
+
+                        console.log('Current section:', currentSectionName, 'Target section:', targetSectionName);
+
+                        if (currentSectionName !== targetSectionName) {
+                            console.log('Moving item to different section');
+                            vm.moveItemToSection(vm.draggedItem, targetSection);
+                        } else {
+                            console.log('Item already in target section');
+                        }
+                    } else {
+                        console.log('No target section found');
+                    }
+                } else {
+                    console.log('No valid drop target found');
+                }
+
+                // Clean up
+                vm.draggedItem = null;
+                vm.draggedSection = null;
+                vm.dragOverItem = null;
+                vm.dragOverSection = null;
+
+                document.querySelectorAll('.drag-over, .section-drag-over').forEach(el => {
+                    el.classList.remove('drag-over', 'section-drag-over');
+                });
+            });
+        };
+
+        vm.handleItemDrop = function (draggedItem, targetItem) {
+            if (!draggedItem || !targetItem || draggedItem.id === targetItem.id) return;
+
+            console.log('Handling item drop:', draggedItem.name, '->', targetItem.name);
+
+            const draggedSectionName = draggedItem.section ? draggedItem.section.name : vm.noneSectionName;
+            const targetSectionName = targetItem.section ? targetItem.section.name : vm.noneSectionName;
+
+            // If items are in different sections, move dragged item to target section first
+            if (draggedSectionName !== targetSectionName) {
+                console.log('Moving item to different section before reordering');
+                vm.moveItemToSection(draggedItem, targetItem.section);
+                // Wait for section change to complete before reordering
+                $timeout(() => {
+                    vm.reorderItemInSection(draggedItem, targetItem);
+                }, 100);
+            } else {
+                // Items are in same section - just reorder
+                console.log('Reordering items within same section');
+                vm.reorderItemInSection(draggedItem, targetItem);
+            }
+        };
+
+        vm.reorderItemInSection = function (draggedItem, targetItem) {
+            const sectionName = draggedItem.section ? draggedItem.section.name : vm.noneSectionName;
+            const list = vm.grouped[sectionName] || [];
+
+            console.log('Reordering in section:', sectionName, 'list length:', list.length);
+
+            if (list.length < 2) return;
+
+            const draggedIndex = list.findIndex(it => it.id === draggedItem.id);
+            const targetIndex = list.findIndex(it => it.id === targetItem.id);
+
+            console.log('Dragged index:', draggedIndex, 'Target index:', targetIndex);
+
+            if (draggedIndex === -1 || targetIndex === -1) return;
+
+            // Remove dragged item from array
+            const [movedItem] = list.splice(draggedIndex, 1);
+            // Insert at target position
+            list.splice(targetIndex, 0, movedItem);
+
+            console.log('New order:', list.map(it => it.name));
+
+            // Reassign orders based on new positions
+            list.forEach((item, index) => {
+                item.order = index + 1;
+                console.log('Updating order for', item.name, 'to', item.order);
+                sendUpdateItem(item);
+            });
+
+            // Force UI update
+            $scope.$apply();
+        };
+
+        vm.handleSectionDrop = function (draggedSectionName, targetSectionName) {
+            if (!draggedSectionName || !targetSectionName || draggedSectionName === targetSectionName) return;
+
+            console.log('Handling section drop:', draggedSectionName, '->', targetSectionName);
+
+            const draggedIndex = vm.sections.findIndex(s => s.name === draggedSectionName);
+            const targetIndex = vm.sections.findIndex(s => s.name === targetSectionName);
+
+            if (draggedIndex === -1 || targetIndex === -1) return;
+
+            // Swap section orders
+            const draggedSection = vm.sections[draggedIndex];
+            const targetSection = vm.sections[targetIndex];
+
+            const tempOrder = draggedSection.order;
+            draggedSection.order = targetSection.order;
+            targetSection.order = tempOrder;
+
+            console.log('Swapping section orders:', draggedSection.name, draggedSection.order, '<=>', targetSection.name, targetSection.order);
+
+            // Update backend
+            $http.patch(`/api/sections/${draggedSection.id}/`, { order: draggedSection.order });
+            $http.patch(`/api/sections/${targetSection.id}/`, { order: targetSection.order });
+
+            // Update local ordering
+            vm.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
+            rebuildSectionOrder();
+
+            // Force UI update
+            $scope.$apply();
+        };
+
+        vm.moveItemToSection = function (item, newSection) {
+            if (!item) return;
+
+            const oldSectionName = item.section ? item.section.name : vm.noneSectionName;
+            const newSectionName = newSection ? newSection.name : vm.noneSectionName;
+
+            if (oldSectionName === newSectionName) return;
+
+            console.log('Moving item', item.name, 'from', oldSectionName, 'to', newSectionName);
+
+            // Update item's section
+            item.section = newSection;
+
+            // Calculate new order in target section
+            const targetList = vm.grouped[newSectionName] || [];
+            let newOrder = 1;
+            if (targetList.length > 0) {
+                newOrder = Math.max(...targetList.map(it => it.order || 0)) + 1;
+            }
+            item.order = newOrder;
+
+            console.log('New order for item:', newOrder);
+
+            // Send update to backend
+            sendUpdateItem(item);
+
+            // Force UI update
+            $scope.$apply();
+        };
 
         // ===== Load all lists from backend =====
         vm.loadLists = function () {
@@ -174,22 +453,20 @@ angular.module('groceryApp', [])
             const secName = vm.newItem.section ? vm.newItem.section.name : vm.noneSectionName;
             const list = vm.grouped[secName] || [];
 
-            // Compute next order - use the highest existing order + 1
-            // If no items exist, start with 1
-            let nextOrder = 1;
+            // compute next order (backend expects order inside the section)
+            let nextOrder = 1; // assuming backend orders start at 1 as in example
             if (list.length > 0) {
-                // Find the maximum order in the current section
-                const orders = list.map(it => it.order || 0);
-                nextOrder = Math.max(...orders) + 1;
+                const max = Math.max.apply(null, list.map(it => (typeof it.order !== 'undefined' ? it.order : 0)));
+                nextOrder = max + 1;
             }
 
             const toSend = angular.copy(vm.newItem);
             toSend.order = nextOrder;
 
-            // Send the new item with the calculated order
+            // keep section as object or null (same shape server expects in your protocol)
             send({ action: 'add', item: toSend });
 
-            // Reset newItem
+            // reset newItem (section stays null)
             vm.newItem = { name: '', section: null };
         };
 
@@ -249,78 +526,6 @@ angular.module('groceryApp', [])
             true
         );
 
-        // ===== Reordering items within a section =====
-        vm.moveItem = function (item, direction) {
-            if (!item) return;
-            const secName = item.section ? item.section.name : vm.noneSectionName;
-            const list = vm.grouped[secName];
-            if (!list) return;
-
-            const idx = list.findIndex(it => it.id === item.id);
-            if (idx === -1) return;
-
-            const newIdx = idx + direction;
-            if (newIdx < 0 || newIdx >= list.length) return;
-
-            const other = list[newIdx];
-
-            // swap order values (if one is undefined, assign sensible defaults)
-            if (typeof item.order === 'undefined') item.order = idx + 1;
-            if (typeof other.order === 'undefined') other.order = newIdx + 1;
-
-            const tmp = item.order;
-            item.order = other.order;
-            other.order = tmp;
-
-            // send updates immediately so backend persists the new ordering
-            sendUpdateItem(item);
-            sendUpdateItem(other);
-
-            // update local grouping (sorted by order)
-            list.sort((a, b) => (a.order || 0) - (b.order || 0));
-        };
-
-        // ===== Reordering whole sections =====
-        vm.moveSection = function (sectionName, direction) {
-            // if trying to move uncategorized, do nothing
-            if (sectionName === vm.noneSectionName) return;
-
-            const idx = vm.sections.findIndex(s => s.name === sectionName);
-            if (idx === -1) return;
-
-            const newIdx = idx + direction;
-            if (newIdx < 0 || newIdx >= vm.sections.length) return;
-
-            // swap order numbers
-            const sec = vm.sections[idx];
-            const other = vm.sections[newIdx];
-
-            const secOrder = sec.order || 0;
-            const otherOrder = other.order || 0;
-
-            // swap numerical order values
-            const tmpOrder = secOrder;
-            sec.order = otherOrder;
-            other.order = tmpOrder;
-
-            // persist both sections' order to backend via PATCH
-            $http.patch(`/api/sections/${sec.id}/`, { order: sec.order }).then(() => {
-                // success - nothing extra required
-            }).catch(err => {
-                console.error('Failed to update section order for', sec, err);
-            });
-
-            $http.patch(`/api/sections/${other.id}/`, { order: other.order }).then(() => {
-                // success
-            }).catch(err => {
-                console.error('Failed to update section order for', other, err);
-            });
-
-            // reorder vm.sections array and rebuild order array used by the UI
-            vm.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
-            rebuildSectionOrder();
-        };
-
         // ===== Convenience: find section object by name or id =====
         vm.getSectionByName = function (name) {
             return vm.sections.find(s => s.name === name) || null;
@@ -330,7 +535,7 @@ angular.module('groceryApp', [])
             return vm.sections.find(s => s.id === id) || null;
         };
 
-        // ===== Theme toggle (same as before) =====
+        // ===== Theme toggle =====
         const toggle = document.getElementById('theme-toggle');
         const savedTheme = localStorage.getItem('theme');
         if (savedTheme === 'dark') {
@@ -350,5 +555,10 @@ angular.module('groceryApp', [])
         // ===== Initial load =====
         vm.loadLists();
         vm.loadSections();
+
+        // Initialize drag and drop after a brief delay to ensure DOM is ready
+        $timeout(() => {
+            vm.initDragAndDrop();
+        }, 100);
 
     }]);
