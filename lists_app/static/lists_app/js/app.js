@@ -257,9 +257,15 @@ angular.module('groceryApp', [])
 
             console.log('Swapping section orders:', draggedSection.name, draggedSection.order, '<=>', targetSection.name, targetSection.order);
 
-            // Update backend
-            $http.patch(`/api/sections/${draggedSection.id}/`, { order: draggedSection.order });
-            $http.patch(`/api/sections/${targetSection.id}/`, { order: targetSection.order });
+            // Send section reorder through WebSocket instead of HTTP
+            const sectionOrders = {};
+            sectionOrders[draggedSection.id] = draggedSection.order;
+            sectionOrders[targetSection.id] = targetSection.order;
+
+            send({
+                action: 'reorder_sections',
+                item: { section_orders: sectionOrders }
+            });
 
             // Update local ordering
             vm.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -372,6 +378,19 @@ angular.module('groceryApp', [])
             if (msg.action === 'deleted') {
                 vm.items = vm.items.filter(it => it.id !== msg.item_id);
                 delete vm._lastSnapshot[msg.item_id];
+            }
+            if (msg.action === 'sections_reordered') {
+                // Update sections with new order from WebSocket
+                console.log('Received sections reordered:', msg.sections);
+                msg.sections.forEach(updatedSection => {
+                    const existingSection = vm.sections.find(s => s.id === updatedSection.id);
+                    if (existingSection) {
+                        existingSection.order = updatedSection.order;
+                    }
+                });
+                // Re-sort sections and rebuild order
+                vm.sections.sort((a, b) => (a.order || 0) - (b.order || 0));
+                rebuildSectionOrder();
             }
 
             // regroup will run through the $watch on vm.items

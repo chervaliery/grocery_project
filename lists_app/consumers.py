@@ -3,6 +3,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from asgiref.sync import sync_to_async
 from .models import GroceryList, Item, Section
 
+
 class ListConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.list_id = self.scope['url_route']['kwargs']['list_id']
@@ -19,10 +20,11 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive_json(self, content):
-        # Expect content: {action: "add"|"update"|"toggle"|"delete", item: {...}}
+        # Expect content: {action: "add"|"update"|"toggle"|"delete"|"reorder_sections", item: {...}}
         action = content.get("action")
         item_data = content.get("item", {})
         print(action, item_data)
+
         if action == "add":
             name = item_data.get("name", "").strip()
             if not name:
@@ -34,7 +36,7 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
             order = item_data.get("order", 9999)
             item = await sync_to_async(Item.objects.create)(grocery_list_id=self.list_id, name=name, section=section, order=order)
             data = item.to_dict()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action":"added","item":data}})
+            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "added", "item": data}})
         elif action == "update":
             item_id = item_data.get("id")
             if not item_id:
@@ -51,7 +53,7 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
                 section = await sync_to_async(Section.objects.filter(id=section_id).first)()
             item.section = section
             await sync_to_async(item.save)()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action":"updated","item": item.to_dict()}})
+            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "updated", "item": item.to_dict()}})
         elif action == "toggle":
             item_id = item_data.get("id")
             if not item_id:
@@ -61,7 +63,7 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
                 return
             item.checked = bool(item_data.get("checked", not item.checked))
             await sync_to_async(item.save)()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action":"updated","item": item.to_dict()}})
+            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "updated", "item": item.to_dict()}})
         elif action == "delete":
             item_id = item_data.get("id")
             if not item_id:
@@ -70,10 +72,36 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
             if not item:
                 return
             await sync_to_async(item.delete)()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action":"deleted","item_id": item_id}})
+            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "deleted", "item_id": item_id}})
+        elif action == "reorder_sections":
+            # Handle section reordering through WebSocket
+            section_orders = item_data.get("section_orders", {})
+            if not section_orders:
+                return
+
+            # Update section orders in database
+            updated_sections = []
+            for section_id, new_order in section_orders.items():
+                section = await sync_to_async(Section.objects.filter(id=section_id).first)()
+                if section:
+                    section.order = new_order
+                    await sync_to_async(section.save)()
+                    updated_sections.append(section.to_dict())
+
+            # Broadcast the updated sections to all clients
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "broadcast",
+                    "message": {
+                        "action": "sections_reordered",
+                        "sections": updated_sections
+                    }
+                }
+            )
         else:
             # unknown action - ignore or send error
-            await self.send_json({"action":"error","message":"unknown action"})
+            await self.send_json({"action": "error", "message": "unknown action"})
 
     async def broadcast(self, event):
         message = event["message"]
