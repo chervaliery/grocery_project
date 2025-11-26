@@ -53,26 +53,33 @@
       <div class="items">
 
         <!-- Ordered sections -->
-        <div ng-repeat="sectionName in vm.sectionOrder">
+        <div ng-repeat="sectionName in vm.sectionOrder" class="section-container" 
+             data-section-name="{[ sectionName ]}">
 
           <div ng-if="vm.grouped[sectionName].length > 0">
 
-            <!-- Section header with move buttons -->
+            <!-- Section header with drag handle -->
             <div class="section-header" style="display:flex; align-items:center; gap:.5rem;">
+              <!-- Section drag handle -->
+              <div class="drag-handle section-drag-handle" 
+                   draggable="true"
+                   ng-if="sectionName !== '_none'"
+                   data-section-name="{[ sectionName ]}">
+                ☰
+              </div>
+
               <h3 ng-if="sectionName !== '_none'">{[ sectionName ]}</h3>
               <h3 ng-if="sectionName === '_none'">Uncategorized</h3>
-
-              <!-- Section reorder buttons -->
-              <button ng-if="sectionName !== '_none'" ng-click="vm.moveSection(sectionName, -1)">↑</button>
-              <button ng-if="sectionName !== '_none'" ng-click="vm.moveSection(sectionName, +1)">↓</button>
             </div>
 
             <!-- Items inside this section -->
-            <div class="item" ng-repeat="it in vm.grouped[sectionName] track by it.id">
+            <div class="item" ng-repeat="it in vm.grouped[sectionName] track by it.id"
+                 data-item-id="{[ it.id ]}">
 
-              <!-- Item reorder buttons -->
-              <button ng-click="vm.moveItem(it, -1)">↑</button>
-              <button ng-click="vm.moveItem(it, +1)">↓</button>
+              <!-- Item drag handle -->
+              <div class="drag-handle item-drag-handle" data-item-id="{[ it.id ]}" draggable="true">
+                ☰
+              </div>
 
               <input type="checkbox" ng-model="it.checked" ng-change="vm.toggle(it)" />
 
@@ -99,6 +106,8 @@
 
         <!-- New item row -->
         <div class="item new-item">
+          <div class="drag-handle" style="visibility: hidden;">☰</div>
+
           <input type="checkbox" disabled />
 
           <input type="text"

@@ -402,3 +402,47 @@ button:disabled {
 .dark-mode .suggestions li:hover {
   background: #333;
 }
+
+/* Add to your existing CSS file */
+.drag-handle {
+    cursor: grab;
+    user-select: none;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    padding: 0.25rem;
+    margin-right: 0.5rem;
+}
+
+.drag-handle:hover {
+    opacity: 1;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.item[draggable="true"] {
+    transition: background-color 0.2s;
+}
+
+.drag-over {
+    background-color: rgba(0, 120, 215, 0.1);
+    border: 2px dashed #0078d7;
+}
+
+.section-drag-over {
+    background-color: rgba(0, 120, 215, 0.05);
+    border: 2px dashed #0078d7;
+    border-radius: 4px;
+}
+
+/* Dark mode support */
+.dark-mode .drag-over {
+    background-color: rgba(100, 150, 255, 0.2);
+    border-color: #6496ff;
+}
+
+.dark-mode .section-drag-over {
+    background-color: rgba(100, 150, 255, 0.1);
+    border-color: #6496ff;
+}
