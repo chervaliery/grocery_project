@@ -1,136 +1,213 @@
 {% load static %}
 <!doctype html>
 <html ng-app="groceryApp">
+  <head>
+    <meta charset="utf-8" />
+    <title>Family Grocery — Live</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+    <script src="{% static 'lists_app/js/app.js' %}" defer></script>
+    <link rel="stylesheet" href="{% static 'lists_app/css/style.css' %}" />
+  </head>
 
-<head>
-  <meta charset="utf-8" />
-  <title>Family Grocery — Live</title>
-  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
-  <script src="{% static 'lists_app/js/app.js' %}" defer></script>
-  <link rel="stylesheet" href="{% static 'lists_app/css/style.css' %}">
-</head>
+  <body ng-controller="MainCtrl as vm">
+    {% csrf_token %}
+    <div
+      class="theme-switch-wrapper"
+      style="text-align: right; margin-bottom: 1rem"
+    >
+      <label class="theme-switch" for="theme-toggle">
+        <input type="checkbox" id="theme-toggle" />
+        <span class="slider">
+          <span class="icon sun">☀️</span>
+          <span class="icon moon">🌙</span>
+        </span>
+      </label>
+    </div>
 
-<body ng-controller="MainCtrl as vm">
-  {% csrf_token %}
-  <div class="theme-switch-wrapper" style="text-align:right; margin-bottom:1rem;">
-    <label class="theme-switch" for="theme-toggle">
-      <input type="checkbox" id="theme-toggle" />
-      <span class="slider">
-        <span class="icon sun">☀️</span>
-        <span class="icon moon">🌙</span>
-      </span>
-    </label>
-  </div>
+    <div class="container section">
+      <h1>Family Grocery Lists</h1>
 
-  <div class="container section">
-    <h1>Family Grocery Lists</h1>
+      <!-- List Selector -->
+      <div ng-if="!vm.currentList">
+        <div class="list-header">
+          <button ng-click="vm.createList()">➕ New List</button>
+        </div>
 
-    <!-- List Selector -->
-    <div ng-if="!vm.currentList">
-      <div class="list-header">
-        <button ng-click="vm.createList()">➕ New List</button>
+        <div class="list-buttons">
+          <button
+            ng-repeat="lst in vm.lists"
+            ng-click="vm.openList(lst)"
+            class="list-btn"
+          >
+            🛒 {[ lst.name ]}
+          </button>
+        </div>
       </div>
 
-      <div class="list-buttons">
-        <button ng-repeat="lst in vm.lists" ng-click="vm.openList(lst)" class="list-btn">
-          🛒 {[ lst.name ]}
-        </button>
+      <!-- Active List View -->
+      <div ng-if="vm.currentList">
+        <div class="list-header">
+          <h2>{[ vm.currentList.name ]}</h2>
+          <button ng-click="vm.leaveList()">← Back</button>
+        </div>
+
+        <div
+          class="status"
+          ng-class="{'connected': vm.connected, 'disconnected': !vm.connected}"
+        >
+          {[ vm.connected ? 'Connected' : 'Disconnected' ]}
+        </div>
+
+        <div class="items">
+          <!-- Ordered sections -->
+          <div
+            ng-repeat="sectionName in vm.sectionOrder"
+            class="section-container"
+            data-section-name="{[ sectionName ]}"
+          >
+            <div ng-if="vm.grouped[sectionName].length > 0">
+              <!-- Section header with drag handle -->
+              <div
+                class="section-header"
+                style="display: flex; align-items: center; gap: 0.5rem"
+              >
+                <!-- Section drag handle -->
+                <div
+                  class="drag-handle section-drag-handle"
+                  draggable="true"
+                  ng-if="sectionName !== '_none'"
+                  data-section-name="{[ sectionName ]}"
+                >
+                  ☰
+                </div>
+
+                <h3 ng-if="sectionName !== '_none'">{[ sectionName ]}</h3>
+                <h3 ng-if="sectionName === '_none'">Uncategorized</h3>
+              </div>
+
+              <!-- Items inside this section -->
+              <div
+                class="item"
+                ng-repeat="it in vm.grouped[sectionName] track by it.id"
+                data-item-id="{[ it.id ]}"
+              >
+                <!-- Item drag handle -->
+                <div
+                  class="drag-handle item-drag-handle"
+                  data-item-id="{[ it.id ]}"
+                  draggable="true"
+                >
+                  ☰
+                </div>
+
+                <input
+                  type="checkbox"
+                  ng-model="it.checked"
+                  ng-change="vm.toggle(it)"
+                />
+
+                <input
+                  type="text"
+                  ng-model="it.name"
+                  ng-change="vm.queueUpdate(it)"
+                  ng-blur="vm.commitUpdate(it)"
+                  ng-class="{'checked': it.checked}"
+                />
+
+                <div class="section-select">
+                  <button
+                    class="section-btn"
+                    ng-click="vm.openSectionPicker(it)"
+                  >
+                    <img
+                      ng-if="it.section && it.section.img"
+                      ng-src="{[ it.section.img ]}"
+                      alt="{[ it.section.name ]}"
+                      class="section-thumb"
+                    />
+                    <span class="section-name"
+                      >{[ it.section ? it.section.name : '-- No section --'
+                      ]}</span
+                    >
+                  </button>
+                </div>
+
+                <button class="delete" ng-click="vm.remove(it)">✕</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- New item row -->
+          <div class="item new-item">
+            <div class="drag-handle" style="visibility: hidden">☰</div>
+
+            <input type="checkbox" disabled />
+
+            <input
+              type="text"
+              ng-model="vm.newItem.name"
+              placeholder="Add new item..."
+              ng-keypress="vm.handleKey($event)"
+              ng-blur="vm.handleBlur()"
+            />
+
+            <div class="section-select">
+              <button class="section-btn" ng-click="vm.openSectionPicker(null)">
+                <span class="section-name"
+                  >{[ vm.newItem.section ? vm.newItem.section.name : '-- No
+                  section --' ]}</span
+                >
+              </button>
+            </div>
+
+            <button class="delete" disabled>✕</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Active List View -->
-    <div ng-if="vm.currentList">
-
-      <div class="list-header">
-        <h2>{[ vm.currentList.name ]}</h2>
-        <button ng-click="vm.leaveList()">← Back</button>
-      </div>
-
-      <div class="status" ng-class="{'connected': vm.connected, 'disconnected': !vm.connected}">
-        {[ vm.connected ? 'Connected' : 'Disconnected' ]}
-      </div>
-
-      <div class="items">
-
-        <!-- Ordered sections -->
-        <div ng-repeat="sectionName in vm.sectionOrder" class="section-container" 
-             data-section-name="{[ sectionName ]}">
-
-          <div ng-if="vm.grouped[sectionName].length > 0">
-
-            <!-- Section header with drag handle -->
-            <div class="section-header" style="display:flex; align-items:center; gap:.5rem;">
-              <!-- Section drag handle -->
-              <div class="drag-handle section-drag-handle" 
-                   draggable="true"
-                   ng-if="sectionName !== '_none'"
-                   data-section-name="{[ sectionName ]}">
-                ☰
-              </div>
-
-              <h3 ng-if="sectionName !== '_none'">{[ sectionName ]}</h3>
-              <h3 ng-if="sectionName === '_none'">Uncategorized</h3>
-            </div>
-
-            <!-- Items inside this section -->
-            <div class="item" ng-repeat="it in vm.grouped[sectionName] track by it.id"
-                 data-item-id="{[ it.id ]}">
-
-              <!-- Item drag handle -->
-              <div class="drag-handle item-drag-handle" data-item-id="{[ it.id ]}" draggable="true">
-                ☰
-              </div>
-
-              <input type="checkbox" ng-model="it.checked" ng-change="vm.toggle(it)" />
-
-              <input type="text"
-                     ng-model="it.name"
-                     ng-change="vm.queueUpdate(it)"
-                     ng-blur="vm.commitUpdate(it)"
-                     ng-class="{'checked': it.checked}" />
-
-              <div class="section-select">
-                <select ng-options="s as s.name for s in vm.sections track by s.id"
-                        ng-model="it.section"
-                        ng-change="vm.queueUpdate(it)"
-                        ng-blur="vm.commitUpdate(it)">
-                  <option value="">-- No section --</option>
-                </select>
-              </div>
-
-              <button ng-click="vm.remove(it)">✕</button>
-            </div>
-
-          </div>
+    <!-- Section picker modal -->
+    <div
+      ng-if="vm.sectionPicker && vm.sectionPicker.open"
+      class="modal-overlay"
+      ng-click="vm.closeSectionPicker($event)"
+    >
+      <div class="modal" ng-click="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Select section</h3>
+          <button class="close-btn" ng-click="vm.closeSectionPicker()">
+            ✕
+          </button>
         </div>
 
-        <!-- New item row -->
-        <div class="item new-item">
-          <div class="drag-handle" style="visibility: hidden;">☰</div>
-
-          <input type="checkbox" disabled />
-
-          <input type="text"
-                 ng-model="vm.newItem.name"
-                 placeholder="Add new item..."
-                 ng-keypress="vm.handleKey($event)"
-                 ng-blur="vm.handleBlur()" />
-
-          <div class="section-select">
-            <select ng-options="option as option.name for option in vm.sections track by option.id"
-                    ng-model="vm.newItem.section"
-                    ng-keypress="vm.handleKey($event)"
-                    ng-blur="vm.handleBlur()">
-              <option value="">-- No section --</option>
-            </select>
+        <div class="section-grid">
+          <div
+            class="section-card"
+            ng-click="vm.chooseSection(null)"
+            role="button"
+            tabindex="0"
+          >
+            <div class="section-card-media no-section">No section</div>
+            <div class="section-card-name">Uncategorized</div>
           </div>
 
-          <button disabled>✕</button>
+          <div
+            class="section-card"
+            ng-repeat="s in vm.sections"
+            ng-click="vm.chooseSection(s)"
+            role="button"
+            tabindex="0"
+          >
+            <img
+              ng-if="s.img"
+              ng-src="{[ s.img ]}"
+              alt="{[ s.name ]}"
+              class="section-card-media"
+            />
+            <div class="section-card-name">{[ s.name ]}</div>
+          </div>
         </div>
-
       </div>
     </div>
-  </div>
-
-</body>
+  </body>
 </html>

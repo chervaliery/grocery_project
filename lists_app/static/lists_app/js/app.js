@@ -44,6 +44,9 @@ angular
       vm._lastSnapshot = {};
       vm.noneSectionName = "_none";
 
+      // Section picker state used by the modal
+      vm.sectionPicker = { open: false, item: null };
+
       // Drag and drop state
       vm.draggedItem = null;
       vm.draggedSection = null;
@@ -266,6 +269,32 @@ angular
               el.classList.remove("drag-over", "section-drag-over");
             });
         });
+      };
+
+      // Open the section picker for a given item. Pass `null` to pick for the newItem.
+      vm.openSectionPicker = function (item) {
+        vm.sectionPicker.open = true;
+        vm.sectionPicker.item = item; // either an existing item object or null for newItem
+      };
+
+      vm.closeSectionPicker = function (evt) {
+        if (evt) evt.stopPropagation();
+        vm.sectionPicker.open = false;
+        vm.sectionPicker.item = null;
+      };
+
+      // Choose a section from the modal. `section` may be null to indicate uncategorized.
+      vm.chooseSection = function (section) {
+        const targetItem = vm.sectionPicker.item;
+        if (targetItem) {
+          // assign and commit update for existing item
+          targetItem.section = section;
+          vm.commitUpdate(targetItem);
+        } else {
+          // selecting for newItem
+          vm.newItem.section = section;
+        }
+        vm.closeSectionPicker();
       };
 
       vm.handleItemDrop = function (draggedItem, targetItem) {

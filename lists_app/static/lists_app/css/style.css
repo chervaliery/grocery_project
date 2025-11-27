@@ -108,17 +108,19 @@ h2 {
 }
 
 /* Delete Button */
-.item button {
+.item button.delete {
   background: none;
   border: none;
-  color: #e53e3e;
+  /* softer coral red for delete action */
+  color: #ff6b6b;
   font-size: 1.2rem;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.15s ease, transform 0.08s ease;
 }
 
-.item button:hover {
-  color: #c53030;
+.item button.delete:hover {
+  color: #ff4b4b;
+  transform: translateY(-1px);
 }
 
 /* New Item Line */
@@ -233,12 +235,13 @@ button:disabled {
   background-color: #004494;
 }
 
-.dark-mode .item button {
-  color: #f56565;
+.dark-mode .item button.delete {
+  /* slightly lighter in dark mode for pleasant contrast */
+  color: #ff8b8b;
 }
 
-.dark-mode .item button:hover {
-  color: #e53e3e;
+.dark-mode .item button.delete:hover {
+  color: #ff6b6b;
 }
 
 /* ===== List Buttons ===== */
@@ -401,7 +404,9 @@ button:disabled {
   color: inherit;
   cursor: pointer;
   min-width: 140px;
-  transition: border-color 0.15s, background-color 0.15s;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
 }
 
 .section-select select:focus {
@@ -427,6 +432,138 @@ button:disabled {
     width: 100%;
     min-width: unset;
   }
+}
+
+/* ===== Section picker modal ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  width: min(720px, 95%);
+  max-height: 80vh;
+  overflow: auto;
+  padding: 1rem;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.section-card {
+  background: #f7f9fb;
+  border-radius: 6px;
+  padding: 0.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.section-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.section-card-media {
+  width: 100%;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.section-card-media.no-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9ecef;
+  color: #333;
+  font-weight: 600;
+  height: 90px;
+}
+
+.section-card-name {
+  font-size: 0.95rem;
+  color: #222;
+}
+
+/* Improve contrast in dark mode for section names and section buttons */
+.dark-mode .section-card-name {
+  color: #e6eef8; /* soft, high-contrast light blue */
+}
+
+/* Ensure section button text is readable in dark mode */
+.section-btn {
+  color: #333;
+}
+.dark-mode .section-btn {
+  color: #e0e0e0;
+}
+
+.section-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: #fff;
+  cursor: pointer;
+}
+
+.section-btn .section-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.item.new-item .section-btn {
+  background: #f8f9fa;
+  border-color: #ddd;
+}
+
+.dark-mode .modal {
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
+
+.dark-mode .section-card {
+  background: #222;
+}
+
+.dark-mode .section-card-media.no-section {
+  background: #2a2a2a;
 }
 
 /* ===== Drag & Drop ===== */
