@@ -1,4 +1,3 @@
-import json
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from asgiref.sync import sync_to_async
 from .models import GroceryList, Item, Section
@@ -11,9 +10,11 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
         # Accept the connection
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
-        # Send initial data
-        items = await sync_to_async(list)(Item.objects.filter(grocery_list_id=self.list_id).order_by('id'))
-        items_data = await sync_to_async(list)([item.to_dict() for item in items])
+        # Send initial data (perform DB + serialization in sync helpers)
+        items_qs = Item.objects.filter(grocery_list_id=self.list_id).order_by('id')
+        items = await sync_to_async(list)(items_qs)
+        # Run the potentially-heavy to_dict conversions in a sync wrapper
+        items_data = await sync_to_async(lambda iters: [it.to_dict() for it in iters])(items)
         await self.send_json({"action": "initial", "items": items_data})
 
     async def disconnect(self, close_code):
@@ -23,7 +24,7 @@ class ListConsumer(AsyncJsonWebsocketConsumer):
         # Expect content: {action: "add"|"update"|"toggle"|"delete"|"reorder_sections", item: {...}}
         action = content.get("action")
         item_data = content.get("item", {})
-        print(action, item_data)
+        # Received action from client; avoid printing by default (kept for debugging if needed)
 
         if action == "add":
             name = item_data.get("name", "").strip()
