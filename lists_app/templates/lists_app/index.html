@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Liste de courses</title>
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- AngularJS 1.8.2 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular.js/1.8.2/angular.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-route/1.8.2/angular-route.min.js"></script>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'lists_app/css/style.css' %}">
+  <script>
+  (function(){
+    var stored = localStorage.getItem('app-theme');
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var theme = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  })();
+  </script>
+</head>
+<body ng-app="listsApp">
+  <div class="container-fluid py-2" ng-view></div>
+  <script>
+  (function(){
+    var key = 'app-theme';
+    function applyTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem(key, theme);
+      var icon = document.querySelector('.theme-toggle-icon');
+      if (icon) icon.textContent = theme === 'dark' ? icon.dataset.sun : icon.dataset.moon;
+    }
+    function updateIcon() {
+      var cur = document.documentElement.getAttribute('data-theme') || 'light';
+      var icon = document.querySelector('.theme-toggle-icon');
+      if (icon) icon.textContent = cur === 'dark' ? icon.dataset.sun : icon.dataset.moon;
+    }
+    document.body.addEventListener('click', function(e) {
+      if (e.target.closest && e.target.closest('.theme-toggle')) {
+        var cur = document.documentElement.getAttribute('data-theme') || 'light';
+        applyTheme(cur === 'dark' ? 'light' : 'dark');
+      }
+    });
+    function scheduleUpdateIcon() {
+      updateIcon();
+      setTimeout(updateIcon, 0);
+      setTimeout(updateIcon, 300);
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        scheduleUpdateIcon();
+        var container = document.querySelector('.container-fluid');
+        if (container) {
+          var obs = new MutationObserver(function() { scheduleUpdateIcon(); });
+          obs.observe(container, { childList: true, subtree: true });
+        }
+      });
+    } else {
+      scheduleUpdateIcon();
+    }
+  })();
+  </script>
+  <script src="{% static 'lists_app/js/app.js' %}"></script>
+  <script src="{% static 'lists_app/js/services.js' %}"></script>
+  <script src="{% static 'lists_app/js/directives.js' %}"></script>
+  <script src="{% static 'lists_app/js/controllers.js' %}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,35 +1,47 @@
 from django.contrib import admin
-from django.urls import reverse
-from django.utils.html import format_html
-from .models import GroceryList, Item, Section
 
-@admin.register(GroceryList)
-class GroceryListAdmin(admin.ModelAdmin):
-    """
-    Admin interface for the GroceryList model.
-    """
-    list_display = ('id', 'name', 'created_at')
+from .models import GroceryList, Item, Section, SectionKeyword
+
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
-    """
-    Admin interface for the Section model.
-    """
-    list_display = ('id', 'name', 'order')
+    list_display = ("name_slug", "label_fr", "position")
+    search_fields = ("name_slug", "label_fr")
+    list_editable = ("position",)
+    ordering = ("position", "id")
+
+
+@admin.register(SectionKeyword)
+class SectionKeywordAdmin(admin.ModelAdmin):
+    list_display = ("keyword", "section")
+    search_fields = ("keyword",)
+    list_filter = ("section",)
+    ordering = ("keyword",)
+
+
+class ItemInline(admin.TabularInline):
+    model = Item
+    extra = 0
+    fields = ("name", "section", "quantity", "notes", "checked", "position")
+    ordering = ("section", "position")
+    show_change_link = True
+
+
+@admin.register(GroceryList)
+class GroceryListAdmin(admin.ModelAdmin):
+    list_display = ("name", "id", "created_at", "archived", "position")
+    list_filter = ("archived",)
+    search_fields = ("name",)
+    ordering = ("-archived", "position", "-created_at")
+    inlines = [ItemInline]
+    readonly_fields = ("id", "created_at")
+
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    """
-    Admin interface for the Item model.
-    """
-    list_display = ('id', 'get_grocery_list', 'name', 'get_section', 'order', 'checked', 'updated_at')
-
-    def get_grocery_list(self, obj):
-        link = reverse("admin:lists_app_grocerylist_change", args=[obj.grocery_list.pk])
-        return format_html(f'<a href="{link}">{obj.grocery_list.name}</a>')
-
-    def get_section(self, obj):
-        if obj.section:
-            link = reverse("admin:lists_app_section_change", args=[obj.section.pk])
-            return format_html(f'<a href="{link}">{obj.section.name}</a>')
-        return format_html('-')
+    list_display = ("name", "grocery_list", "section", "checked", "position")
+    list_filter = ("section", "checked", "grocery_list")
+    search_fields = ("name", "notes")
+    ordering = ("grocery_list", "section", "position")
+    readonly_fields = ("id",)
+    list_select_related = ("grocery_list", "section")

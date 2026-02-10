@@ -1,0 +1,13 @@
+# Logrotate config for Grocery List app logs.
+# Copy to /etc/logrotate.d/grocery-list and adjust user/group if needed:
+#   sudo cp deploy/logrotate.grocery-list /etc/logrotate.d/grocery-list
+
+/var/log/grocery_list/*.log {
+    daily
+    missingok
+    notifempty
+    rotate 14
+    compress
+    delaycompress
+    create 0640 grocery grocery
+}

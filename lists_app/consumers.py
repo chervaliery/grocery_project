@@ -1,109 +1,222 @@
-from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from asgiref.sync import sync_to_async
-from .models import GroceryList, Item, Section
+"""
+WebSocket consumer for real-time list updates.
+Connect to /ws/list/<list_id>/; receive actions and broadcast to group.
+"""
+
+import json
+import logging
+import uuid
+
+from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
+from django.forms import ValidationError
+
+from lists_app.models import GroceryList, Item
+from lists_app.serializers import list_detail_to_dict
+from lists_app.services import item_service as item_svc
+from lists_app.utils import parse_uuid
+
+logger = logging.getLogger(__name__)
 
 
-class ListConsumer(AsyncJsonWebsocketConsumer):
+@database_sync_to_async
+def get_list_exists(list_id: uuid.UUID) -> bool:
+    return GroceryList.objects.filter(pk=list_id).exists()
+
+
+@database_sync_to_async
+def get_list_with_items(list_id: uuid.UUID) -> dict | None:
+    try:
+        gl = GroceryList.objects.get(pk=list_id)
+        return list_detail_to_dict(gl)
+    except GroceryList.DoesNotExist:
+        return None
+
+
+def _do_add_item(list_id, name, quantity="", notes="", section_slug=None):
+    """Returns (item_dict, None) on success, (None, error_message) on validation error, (None, None) if list not found."""
+    try:
+        gl = GroceryList.objects.get(pk=list_id)
+    except GroceryList.DoesNotExist:
+        return (None, None)
+    try:
+        item_dict = item_svc.create_item(
+            gl, name, quantity=quantity, notes=notes, section_slug=section_slug
+        )
+        return (item_dict, None)
+    except ValidationError:
+        return (None, "Nom invalide.")
+
+
+@database_sync_to_async
+def ws_add_item(list_id, name, quantity="", notes="", section_slug=None):
+    return _do_add_item(list_id, name, quantity, notes, section_slug)
+
+
+def _do_update_item(list_id, item_id, **kwargs):
+    try:
+        gl = GroceryList.objects.get(pk=list_id)
+    except GroceryList.DoesNotExist:
+        return None
+    return item_svc.update_item(gl, item_id, **kwargs)
+
+
+@database_sync_to_async
+def ws_update_item(list_id, item_id, **kwargs):
+    return _do_update_item(list_id, item_id, **kwargs)
+
+
+@database_sync_to_async
+def ws_delete_item(list_id: uuid.UUID, item_id: uuid.UUID) -> bool:
+    return Item.objects.filter(pk=item_id, grocery_list_id=list_id).delete()[0] > 0
+
+
+def _do_reorder(list_id, section_order=None, item_orders=None):
+    try:
+        gl = GroceryList.objects.get(pk=list_id)
+    except GroceryList.DoesNotExist:
+        return None
+    return item_svc.apply_reorder(
+        gl, section_order=section_order, item_orders=item_orders
+    )
+
+
+@database_sync_to_async
+def ws_reorder_items(list_id, section_order=None, item_orders=None):
+    return _do_reorder(list_id, section_order=section_order, item_orders=item_orders)
+
+
+class ListConsumer(AsyncWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.list_id = None
+        self.room_name = None
+
     async def connect(self):
-        self.list_id = self.scope['url_route']['kwargs']['list_id']
-        self.group_name = f"grocery_list_{self.list_id}"
-        # Accept the connection
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        self.list_id = self.scope["url_route"]["kwargs"].get("list_id")
+        if not self.list_id:
+            logger.warning("ws connect rejected: missing list_id")
+            await self.close(code=4000)
+            return
+        uid = parse_uuid(self.list_id)
+        if uid is None:
+            logger.warning("ws connect rejected: invalid list_id=%r", self.list_id)
+            await self.close(code=4000)
+            return
+        exists = await get_list_exists(uid)
+        if not exists:
+            logger.warning(
+                "ws connect rejected: list not found list_id=%s", self.list_id
+            )
+            await self.close(code=4004)
+            return
+        self.room_name = f"list_{self.list_id}"
+        await self.channel_layer.group_add(self.room_name, self.channel_name)
         await self.accept()
-        # Send initial data (perform DB + serialization in sync helpers)
-        items_qs = Item.objects.filter(grocery_list_id=self.list_id).order_by('id')
-        items = await sync_to_async(list)(items_qs)
-        # Run the potentially-heavy to_dict conversions in a sync wrapper
-        items_data = await sync_to_async(lambda iters: [it.to_dict() for it in iters])(items)
-        await self.send_json({"action": "initial", "items": items_data})
+        logger.info("ws connected list_id=%s", self.list_id)
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        if self.room_name:
+            await self.channel_layer.group_discard(self.room_name, self.channel_name)
+        logger.debug("ws disconnected list_id=%s code=%s", self.list_id, close_code)
 
-    async def receive_json(self, content):
-        # Expect content: {action: "add"|"update"|"toggle"|"delete"|"reorder_sections", item: {...}}
-        action = content.get("action")
-        item_data = content.get("item", {})
-        # Received action from client; avoid printing by default (kept for debugging if needed)
-
-        if action == "add":
-            name = item_data.get("name", "").strip()
+    async def receive(self, text_data=None, bytes_data=None):
+        if not text_data or self.list_id is None:
+            return
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError as e:
+            logger.warning("ws invalid JSON list_id=%s: %s", self.list_id, e)
+            await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
+            return
+        action = data.get("action")
+        if not action:
+            logger.warning("ws missing action list_id=%s", self.list_id)
+            await self.send(text_data=json.dumps({"error": "Missing action"}))
+            return
+        logger.debug("ws receive list_id=%s action=%s", self.list_id, action)
+        uid = parse_uuid(self.list_id)
+        if uid is None:
+            return
+        payload = None
+        if action == "add_item":
+            name = (data.get("name") or "").strip()
             if not name:
+                await self.send(text_data=json.dumps({"error": "Missing name"}))
                 return
-            section = item_data.get("section", None)
-            if section:
-                section_id = section.get("id", None)
-                section = await sync_to_async(Section.objects.filter(id=section_id).first)()
-            order = item_data.get("order", 9999)
-            item = await sync_to_async(Item.objects.create)(grocery_list_id=self.list_id, name=name, section=section, order=order)
-            data = item.to_dict()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "added", "item": data}})
-        elif action == "update":
-            item_id = item_data.get("id")
-            if not item_id:
-                return
-            item = await sync_to_async(Item.objects.filter(id=item_id, grocery_list_id=self.list_id).first)()
-            if not item:
-                return
-            item.name = item_data.get("name", item.name)
-            order = item_data.get("order", item.order)
-            item.order = order
-            section = item_data.get("section", None)
-            if section:
-                section_id = section.get("id", None)
-                section = await sync_to_async(Section.objects.filter(id=section_id).first)()
-            item.section = section
-            await sync_to_async(item.save)()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "updated", "item": item.to_dict()}})
-        elif action == "toggle":
-            item_id = item_data.get("id")
-            if not item_id:
-                return
-            item = await sync_to_async(Item.objects.filter(id=item_id, grocery_list_id=self.list_id).first)()
-            if not item:
-                return
-            item.checked = bool(item_data.get("checked", not item.checked))
-            await sync_to_async(item.save)()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "updated", "item": item.to_dict()}})
-        elif action == "delete":
-            item_id = item_data.get("id")
-            if not item_id:
-                return
-            item = await sync_to_async(Item.objects.filter(id=item_id, grocery_list_id=self.list_id).first)()
-            if not item:
-                return
-            await sync_to_async(item.delete)()
-            await self.channel_layer.group_send(self.group_name, {"type": "broadcast", "message": {"action": "deleted", "item_id": item_id}})
-        elif action == "reorder_sections":
-            # Handle section reordering through WebSocket
-            section_orders = item_data.get("section_orders", {})
-            if not section_orders:
-                return
-
-            # Update section orders in database
-            updated_sections = []
-            for section_id, new_order in section_orders.items():
-                section = await sync_to_async(Section.objects.filter(id=section_id).first)()
-                if section:
-                    section.order = new_order
-                    await sync_to_async(section.save)()
-                    updated_sections.append(section.to_dict())
-
-            # Broadcast the updated sections to all clients
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    "type": "broadcast",
-                    "message": {
-                        "action": "sections_reordered",
-                        "sections": updated_sections
-                    }
-                }
+            item, add_err = await ws_add_item(
+                uid,
+                name,
+                data.get("quantity", ""),
+                data.get("notes", ""),
+                section_slug=data.get("section_slug"),
             )
+            if add_err:
+                await self.send(text_data=json.dumps({"error": add_err}))
+                return
+            if item:
+                payload = {"action": "item_added", "item": item}
+        elif action == "update_item":
+            item_id = parse_uuid(data.get("item_id"))
+            if not item_id:
+                await self.send(text_data=json.dumps({"error": "Invalid item_id"}))
+                return
+            item = await ws_update_item(
+                uid,
+                item_id,
+                name=data.get("name"),
+                quantity=data.get("quantity"),
+                notes=data.get("notes"),
+                checked=data.get("checked"),
+                position=data.get("position"),
+            )
+            if item:
+                payload = {"action": "item_updated", "item": item}
+        elif action == "delete_item":
+            item_id = parse_uuid(data.get("item_id"))
+            if not item_id:
+                await self.send(text_data=json.dumps({"error": "Invalid item_id"}))
+                return
+            deleted = await ws_delete_item(uid, item_id)
+            if deleted:
+                payload = {"action": "item_deleted", "item_id": str(item_id)}
+        elif action == "check_item":
+            item_id = parse_uuid(data.get("item_id"))
+            if not item_id:
+                await self.send(text_data=json.dumps({"error": "Invalid item_id"}))
+                return
+            checked = data.get("checked", True)
+            item = await ws_update_item(uid, item_id, checked=checked)
+            if item:
+                payload = {"action": "item_updated", "item": item}
+        elif action == "reorder_items":
+            item_orders = data.get("item_orders", [])
+            if not isinstance(item_orders, list):
+                await self.send(
+                    text_data=json.dumps({"error": "item_orders must be list"})
+                )
+                return
+            section_order = data.get("section_order")
+            detail = await ws_reorder_items(
+                uid, section_order=section_order, item_orders=item_orders
+            )
+            if detail:
+                payload = {"action": "list_updated", "list": detail}
         else:
-            # unknown action - ignore or send error
-            await self.send_json({"action": "error", "message": "unknown action"})
+            logger.warning(
+                "ws unknown action list_id=%s action=%r", self.list_id, action
+            )
+            await self.send(
+                text_data=json.dumps({"error": f"Unknown action: {action}"})
+            )
+            return
+        if payload:
+            logger.debug("ws broadcast list_id=%s action=%s", self.list_id, action)
+            await self.channel_layer.group_send(
+                self.room_name,
+                {"type": "broadcast_message", "payload": payload},
+            )
 
-    async def broadcast(self, event):
-        message = event["message"]
-        await self.send_json(message)
+    async def broadcast_message(self, event):
+        """Send payload to this client (from group_send)."""
+        await self.send(text_data=json.dumps(event["payload"]))
