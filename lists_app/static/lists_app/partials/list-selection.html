@@ -1,0 +1,68 @@
+<div class="list-selection">
+  <header class="app-header">
+    <h1 class="app-header-title">Listes de courses</h1>
+    <button type="button" class="theme-toggle" title="Basculer clair / sombre" aria-label="Basculer thème clair ou sombre">
+      <span class="theme-toggle-icon" data-sun="☀" data-moon="☽">☽</span>
+    </button>
+  </header>
+  <p ng-if="vm.error" class="text-danger">{{ vm.error }}</p>
+  <div class="new-list-card">
+    <div class="input-group">
+      <input type="text" class="form-control" placeholder="Nom de la nouvelle liste"
+             ng-model="vm.newListName" ng-keypress="$event.which === 13 && vm.createList()">
+      <button class="btn btn-primary" ng-click="vm.createList()">Nouvelle liste</button>
+    </div>
+  </div>
+  <div ng-if="vm.loading" class="app-loading">
+    <span class="app-loading-spinner"></span>
+    <span>Chargement…</span>
+  </div>
+  <ul class="list-group list-group-flush" ng-if="!vm.loading">
+    <li class="list-group-item p-0" ng-repeat="list in vm.lists | filter : { archived: false }">
+      <div class="swipe-row position-relative overflow-hidden"
+           swipe-reveal
+           list="list"
+           on-archive="vm.archiveList(list.id)"
+           on-delete="vm.deleteList(list.id)">
+        <div class="swipe-actions d-flex">
+          <button type="button" class="btn btn-warning flex-fill rounded-0" ng-click="doArchive()">Archiver</button>
+          <button type="button" class="btn btn-danger flex-fill rounded-0" ng-click="doDelete()">Supprimer</button>
+        </div>
+        <div class="swipe-content position-relative">
+          <a ng-click="vm.openList(list.id)" class="d-block p-3 text-decoration-none">
+            {{ list.name }} <span class="text-muted small">({{ list.created_at | date:'shortDate' }})</span>
+            <span class="text-muted small d-block mt-1" ng-if="list.items_count != null">{{ list.items_checked || 0 }} / {{ list.items_count }} articles</span>
+          </a>
+        </div>
+      </div>
+    </li>
+  </ul>
+  <div ng-if="!vm.loading && (vm.lists | filter : { archived: true }).length" class="mt-3">
+    <button type="button" class="archived-toggle btn btn-sm w-100 d-flex align-items-center justify-content-between"
+            ng-click="vm.showArchived = !vm.showArchived"
+            aria-expanded="{{ vm.showArchived }}">
+      <span>Listes archivées ({{ (vm.lists | filter : { archived: true }).length }})</span>
+      <span>{{ vm.showArchived ? '▼' : '▶' }}</span>
+    </button>
+    <ul class="list-group list-group-flush" ng-show="vm.showArchived">
+      <li class="list-group-item p-0" ng-repeat="list in vm.lists | filter : { archived: true }">
+        <div class="swipe-row position-relative overflow-hidden"
+             swipe-reveal
+             list="list"
+             on-restore="vm.restoreList(list.id)"
+             on-delete="vm.deleteList(list.id)">
+          <div class="swipe-actions d-flex">
+            <button type="button" class="btn btn-success flex-fill rounded-0" ng-click="doRestore()">Restaurer</button>
+            <button type="button" class="btn btn-danger flex-fill rounded-0" ng-click="doDelete()">Supprimer</button>
+          </div>
+          <div class="swipe-content position-relative">
+            <a ng-click="vm.openList(list.id)" class="d-block p-3 text-decoration-none">
+              {{ list.name }}
+              <span class="text-muted small d-block mt-1" ng-if="list.items_count != null">{{ list.items_checked || 0 }} / {{ list.items_count }} articles</span>
+            </a>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
+</div>
