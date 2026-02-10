@@ -40,7 +40,9 @@ def _do_add_item(list_id, name, quantity="", notes="", section_slug=None):
     except GroceryList.DoesNotExist:
         return (None, None)
     try:
-        item_dict = item_svc.create_item(gl, name, quantity=quantity, notes=notes, section_slug=section_slug)
+        item_dict = item_svc.create_item(
+            gl, name, quantity=quantity, notes=notes, section_slug=section_slug
+        )
         return (item_dict, None)
     except ValidationError:
         return (None, "Nom invalide.")
@@ -74,7 +76,9 @@ def _do_reorder(list_id, section_order=None, item_orders=None):
         gl = GroceryList.objects.get(pk=list_id)
     except GroceryList.DoesNotExist:
         return None
-    return item_svc.apply_reorder(gl, section_order=section_order, item_orders=item_orders)
+    return item_svc.apply_reorder(
+        gl, section_order=section_order, item_orders=item_orders
+    )
 
 
 @database_sync_to_async
@@ -101,7 +105,9 @@ class ListConsumer(AsyncWebsocketConsumer):
             return
         exists = await get_list_exists(uid)
         if not exists:
-            logger.warning("ws connect rejected: list not found list_id=%s", self.list_id)
+            logger.warning(
+                "ws connect rejected: list not found list_id=%s", self.list_id
+            )
             await self.close(code=4004)
             return
         self.room_name = f"list_{self.list_id}"
@@ -191,11 +197,15 @@ class ListConsumer(AsyncWebsocketConsumer):
                 )
                 return
             section_order = data.get("section_order")
-            detail = await ws_reorder_items(uid, section_order=section_order, item_orders=item_orders)
+            detail = await ws_reorder_items(
+                uid, section_order=section_order, item_orders=item_orders
+            )
             if detail:
                 payload = {"action": "list_updated", "list": detail}
         else:
-            logger.warning("ws unknown action list_id=%s action=%r", self.list_id, action)
+            logger.warning(
+                "ws unknown action list_id=%s action=%r", self.list_id, action
+            )
             await self.send(
                 text_data=json.dumps({"error": f"Unknown action: {action}"})
             )

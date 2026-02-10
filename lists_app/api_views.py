@@ -51,7 +51,11 @@ def _get_lists(request):
     return JsonResponse(
         {
             "lists": [
-                {**list_to_dict(g), "items_count": g.items_count, "items_checked": g.items_checked}
+                {
+                    **list_to_dict(g),
+                    "items_count": g.items_count,
+                    "items_checked": g.items_checked,
+                }
                 for g in lists
             ]
         }
@@ -138,7 +142,10 @@ def _parse_import(request, list_id):
     items = normalize_import_with_llm(text)
     if not items:
         return JsonResponse(
-            {"error": "llm_unavailable", "message": "LLM indisponible ou échec de l'analyse."},
+            {
+                "error": "llm_unavailable",
+                "message": "LLM indisponible ou échec de l'analyse.",
+            },
             status=503,
         )
     return JsonResponse({"items": items})
@@ -175,7 +182,9 @@ def _merge_quantities(quantities: list[str]) -> str:
             total = sum(p[0] for p in parsed)
             unit = units[0]
             if unit:
-                result = f"{int(total) if total == int(total) else total} {unit}".strip()
+                result = (
+                    f"{int(total) if total == int(total) else total} {unit}".strip()
+                )
             else:
                 result = str(int(total) if total == int(total) else total)
             return result[:80]
@@ -283,7 +292,11 @@ def _create_item(request, list_id):
         )
     except ValidationError as e:
         msg = getattr(e, "messages", None) or getattr(e, "message_list", [str(e)])
-        logger.warning("api create_item validation error list_id=%s: %s", list_id, msg[0] if msg else "Nom invalide.")
+        logger.warning(
+            "api create_item validation error list_id=%s: %s",
+            list_id,
+            msg[0] if msg else "Nom invalide.",
+        )
         return _json_400(msg[0] if msg else "Nom invalide.")
     logger.info("api create_item list_id=%s item_id=%s", list_id, item_dict.get("id"))
     return JsonResponse(item_dict, status=201)
@@ -305,7 +318,11 @@ def _patch_item(request, list_id, item_id):
             kwargs["name"] = validate_item_name(body["name"])
         except ValidationError as e:
             msg = getattr(e, "messages", None) or getattr(e, "message_list", [str(e)])
-            logger.warning("api patch_item validation error list_id=%s item_id=%s", list_id, item_id)
+            logger.warning(
+                "api patch_item validation error list_id=%s item_id=%s",
+                list_id,
+                item_id,
+            )
             return _json_400(msg[0] if msg else "Nom invalide.")
     if "quantity" in body:
         kwargs["quantity"] = validate_quantity(body["quantity"])
@@ -354,7 +371,9 @@ def _reorder(request, list_id):
         return err
     section_order = body.get("section_order")
     item_orders = body.get("item_orders")
-    result = item_svc.apply_reorder(gl, section_order=section_order, item_orders=item_orders)
+    result = item_svc.apply_reorder(
+        gl, section_order=section_order, item_orders=item_orders
+    )
     logger.info("api reorder list_id=%s", list_id)
     return JsonResponse(result)
 

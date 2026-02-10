@@ -34,7 +34,9 @@ def create_item(grocery_list, name, quantity="", notes="", section_slug=None):
     if section is None:
         section = Section.objects.get(name_slug="autre")
     max_pos = (
-        grocery_list.items.filter(section=section).aggregate(mx=Max("position")).get("mx")
+        grocery_list.items.filter(section=section)
+        .aggregate(mx=Max("position"))
+        .get("mx")
         or 0
     )
     item = Item.objects.create(
@@ -114,9 +116,9 @@ def apply_reorder(grocery_list, section_order=None, item_orders=None):
                     uid = parse_uuid(iid) if isinstance(iid, str) else iid
                     if uid:
                         try:
-                            Item.objects.filter(pk=uid, grocery_list=grocery_list).update(
-                                position=pos
-                            )
+                            Item.objects.filter(
+                                pk=uid, grocery_list=grocery_list
+                            ).update(position=pos)
                         except Exception:
                             pass
     return list_detail_to_dict(grocery_list)
