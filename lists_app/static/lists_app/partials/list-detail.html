@@ -1,0 +1,104 @@
+<div class="list-detail">
+  <header class="app-header" ng-if="!vm.loading && vm.list">
+    <div class="app-header-left">
+      <button type="button" class="back-link btn btn-link p-0" ng-click="vm.back()">← Retour</button>
+      <h1 class="app-header-title mb-0" ng-if="!vm.editingListName">
+        {{ vm.list.name }}
+        <button type="button" class="btn btn-link btn-sm p-0 ms-1" ng-click="vm.startEditListName()" title="Modifier le nom">✎</button>
+      </h1>
+    </div>
+    <button type="button" class="theme-toggle" title="Basculer clair / sombre" aria-label="Basculer thème clair ou sombre">
+      <span class="theme-toggle-icon" data-sun="☀" data-moon="☽">☽</span>
+    </button>
+  </header>
+  <p ng-if="vm.error" class="text-danger">{{ vm.error }}</p>
+  <div ng-if="vm.loading" class="app-loading">
+    <span class="app-loading-spinner"></span>
+    <span>Chargement…</span>
+  </div>
+  <div ng-if="!vm.loading && vm.list">
+    <div class="list-name-edit mb-3" ng-if="vm.editingListName">
+      <div class="input-group">
+        <input type="text" class="form-control" ng-model="vm.listNameEdit" ng-keydown="vm.listNameKeydown($event)">
+        <button class="btn btn-primary" ng-click="vm.saveListName()">OK</button>
+        <button class="btn btn-outline-secondary" ng-click="vm.cancelEditListName()">Annuler</button>
+      </div>
+    </div>
+    <div class="add-item-card">
+      <p class="small text-muted mb-1">Ajouter un article</p>
+      <div class="input-group mb-1">
+        <input type="text" class="form-control" placeholder="Nom de l'article…"
+               ng-model="vm.newItemName" ng-keypress="$event.which === 13 && vm.addItem()">
+        <input type="text" class="form-control add-item-qty" placeholder="Qté" ng-model="vm.newItemQuantity">
+        <button class="btn btn-primary" ng-click="vm.addItem()">Ajouter</button>
+      </div>
+      <input type="text" class="form-control form-control-sm mb-2" style="max-width: 20rem;" placeholder="Notes (optionnel)" ng-model="vm.newItemNotes">
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#importModal">Importer une liste</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="vm.deduplicate()">Dédupliquer</button>
+        <span class="small text-success" ng-if="vm.deduplicateMessage">{{ vm.deduplicateMessage }}</span>
+      </div>
+    </div>
+    <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="importModalLabel">Importer des articles</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body">
+            <div class="app-loading mb-2" ng-if="vm.importLoading">
+              <span class="app-loading-spinner"></span>
+              <span class="small">Analyse en cours…</span>
+            </div>
+            <textarea class="form-control" rows="8" placeholder="Collez une liste (libre). Ex. :&#10;Œufs : 4&#10;Pecorino romano : 100 g&#10;Poivre noir"
+                      ng-model="vm.importText" ng-disabled="vm.importLoading"></textarea>
+            <p class="small text-muted mt-2 mb-0" ng-if="!vm.importLoading">Collez une liste en texte libre ; elle sera analysée pour en extraire les articles (nom, quantité, section).</p>
+            <p class="small text-warning mt-1 mb-0" ng-if="vm.importMessage">{{ vm.importMessage }}</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" ng-disabled="vm.importLoading">Annuler</button>
+            <button type="button" class="btn btn-primary" ng-click="vm.doImport()" ng-disabled="vm.importLoading">Importer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <label class="toggle-switch mb-2">
+      <input type="checkbox" class="toggle-switch-input" ng-model="vm.hideChecked">
+      <span class="toggle-switch-track"></span>
+      <span class="toggle-switch-label">Masquer les articles cochés</span>
+    </label>
+    <div class="empty-state" ng-if="vm.sections.length === 0">
+      <p>Cette liste est vide. Ajoutez un article ci-dessus ou importez une liste.</p>
+    </div>
+    <div class="empty-state" ng-if="vm.sections.length > 0 && vm.allSectionsEmpty()">
+      <p>Bravo, tout est coché !</p>
+    </div>
+    <div ng-repeat="section in vm.sections" class="section mb-3" ng-if="vm.getVisibleItems(section).length">
+      <h2 class="h6 text-muted">{{ section.section_label }} <span class="fw-normal">({{ vm.getCheckedCount(section) }} / {{ section.items.length }} articles)</span></h2>
+      <ul class="list-group" sortable-items section="section" on-reorder="vm.reorderItems(section, itemIds)">
+        <li class="list-group-item d-flex align-items-start" data-item-id="{{ item.id }}"
+            ng-class="{'item-checked': item.checked}"
+            ng-repeat="item in section.items track by item.id" ng-show="!vm.hideChecked || !item.checked">
+          <span class="sort-handle me-2 text-muted mt-1" style="cursor: grab;">⋮</span>
+          <input type="checkbox" class="form-check-input me-2 mt-1" ng-checked="item.checked"
+                 ng-click="vm.toggleChecked(item)">
+          <div class="flex-grow-1" ng-if="vm.editingItemId !== item.id">
+            <span>{{ item.name }}</span>
+            <span class="text-muted small ms-1" ng-if="item.quantity">({{ item.quantity }})</span>
+            <p class="small text-muted mb-0 mt-1" ng-if="item.notes">{{ item.notes }}</p>
+            <button type="button" class="btn btn-link btn-sm p-0 ms-1" ng-click="vm.startEditItem(item)" title="Modifier">✎</button>
+          </div>
+          <div class="flex-grow-1" ng-if="vm.editingItemId === item.id">
+            <input type="text" class="form-control form-control-sm mb-1" ng-model="vm.editItemName" placeholder="Nom" ng-keydown="$event.which === 13 && vm.saveEditItem(item); $event.which === 27 && vm.cancelEditItem()">
+            <input type="text" class="form-control form-control-sm mb-1" style="max-width: 100px;" ng-model="vm.editItemQuantity" placeholder="Qté">
+            <input type="text" class="form-control form-control-sm mb-1" ng-model="vm.editItemNotes" placeholder="Notes (optionnel)">
+            <button type="button" class="btn btn-sm btn-primary me-1" ng-click="vm.saveEditItem(item)">OK</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" ng-click="vm.cancelEditItem()">Annuler</button>
+          </div>
+          <button class="btn btn-sm btn-outline-danger ms-2" ng-click="vm.deleteItem(item)" ng-if="vm.editingItemId !== item.id">❌</button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
