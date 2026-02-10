@@ -10,9 +10,7 @@ def reorder_section_by_name(grocery_list: GroceryList, section: Section) -> None
     Reorder all items in the given section alphabetically by name (case-insensitive).
     Updates each item's position so that the section displays in name order.
     """
-    items = list(
-        grocery_list.items.filter(section=section).order_by("position", "id")
-    )
+    items = list(grocery_list.items.filter(section=section).order_by("position", "id"))
     items.sort(key=lambda i: (i.name or "").lower())
     for pos, item in enumerate(items):
         item.position = pos

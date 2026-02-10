@@ -36,4 +36,7 @@ def get_request_json(request, default=None):
         return (body, None)
     except Exception as e:
         logger.warning("get_request_json invalid body: %s", e)
-        return (default if default is not None else {}, JsonResponse({"error": "Invalid JSON"}, status=400))
+        return (
+            default if default is not None else {},
+            JsonResponse({"error": "Invalid JSON"}, status=400),
+        )

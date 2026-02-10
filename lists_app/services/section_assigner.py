@@ -100,9 +100,9 @@ def normalize_import_with_llm(raw_text: str) -> list[dict]:
         "L'utilisateur a collé une liste de courses en texte libre. Elle peut être désordonnée "
         "(formats variés : « Nom : quantité », « quantité nom », tirets, numéros, etc.). Certaines lignes peuvent contenir des élement à ignorer comme le titre d'un section.\n"
         "Normalise-la en un tableau JSON. Chaque élément doit être un objet avec exactement :\n"
-        "- \"name\" : string (nom de l'article normalisé avec une majuscule sans les details autours)\n"
-        "- \"quantity\" : string (quantité, peut être \"\" si aucune)\n"
-        "- \"section_slug\" : string ou null (un des slugs ci-dessous, ou null si inconnu)\n"
+        '- "name" : string (nom de l\'article normalisé avec une majuscule sans les details autours)\n'
+        '- "quantity" : string (quantité, peut être "" si aucune)\n'
+        '- "section_slug" : string ou null (un des slugs ci-dessous, ou null si inconnu)\n'
         f"Sections autorisées (slug=label) : {sections_fr}.\n"
         "Réponds UNIQUEMENT par le tableau JSON minifié, sans markdown, sans explication.\n\n"
         "Liste collée par l'utilisateur :\n"
@@ -141,11 +141,13 @@ def normalize_import_with_llm(raw_text: str) -> list[dict]:
                 section_slug = str(section_slug).strip()
                 if section_slug not in valid_slugs:
                     section_slug = None
-            result.append({
-                "name": name,
-                "quantity": quantity,
-                "section_slug": section_slug,
-            })
+            result.append(
+                {
+                    "name": name,
+                    "quantity": quantity,
+                    "section_slug": section_slug,
+                }
+            )
         logger.info("LLM import normalized count=%d", len(result))
         return result
     except (json.JSONDecodeError, KeyError, TypeError) as e:
