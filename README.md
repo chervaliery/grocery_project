@@ -1,5 +1,8 @@
 # Liste de courses (Grocery List)
 
+[![Tests](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml) [![Ruff](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml) [![CodeQL](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml)
+
+
 Application web de listes de courses pour usage personnel, conçue pour mobile. Plusieurs appareils peuvent ouvrir la même liste en même temps et voir les modifications en temps réel (WebSocket). L’accès se fait par URL de liste ; en production, l’accès peut être restreint par des liens secrets (voir Déploiement).
 
 ## Fonctionnalités
@@ -19,7 +22,7 @@ Application web de listes de courses pour usage personnel, conçue pour mobile. 
 ## Installation
 
 ```bash
-git clone <url-du-repo>
+git clone https://github.com/chervaliery/grocery_project
 cd grocery_project
 python3 -m venv .venv
 source .venv/bin/activate   # ou .venv\Scripts\activate sur Windows
@@ -106,7 +109,7 @@ La base SQLite sera créée dans le répertoire de l’application (`/opt/grocer
 ### 3. Déploiement de l’application
 
 ```bash
-sudo -u grocery git clone <url-du-repo> /opt/grocery_project
+sudo -u grocery git clone https://github.com/chervaliery/grocery_project
 # ou déployer les fichiers (rsync, archive, etc.) puis : sudo chown -R grocery:grocery /opt/grocery_project
 cd /opt/grocery_project
 sudo -u grocery python3.12 -m venv .venv
