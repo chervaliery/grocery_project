@@ -1,6 +1,6 @@
 # Liste de courses (Grocery List)
 
-[![Tests](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml) [![Ruff](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml) [![CodeQL](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml)
+[![Tests](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml) [![Ruff](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml) [![CodeQL](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml/badge.svg)](https://github.com/chervaliery/grocery_project/actions/workflows/ci.yml) [![codecov](https://codecov.io/gh/chervaliery/grocery_project/branch/main/graph/badge.svg)](https://codecov.io/gh/chervaliery/grocery_project)
 
 
 Application web de listes de courses pour usage personnel, conçue pour mobile. Plusieurs appareils peuvent ouvrir la même liste en même temps et voir les modifications en temps réel (WebSocket). L’accès se fait par URL de liste ; en production, l’accès peut être restreint par des liens secrets (voir Déploiement).
@@ -65,7 +65,7 @@ Puis ouvrir `http://localhost:8000/` dans le navigateur (idéalement en mode mob
 ## Tests
 
 ```bash
-python manage.py test lists_app
+pytest
 ```
 
 Pour la qualité du code (Ruff) :
