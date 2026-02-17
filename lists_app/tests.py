@@ -1,13 +1,14 @@
 """
-Tests for lists_app: models, section assigner, API, WebSocket.
+Tests for lists_app: models, section assigner, API, WebSocket, secret-URL access.
 """
 
+import asyncio
 import json
 
 from channels.testing import WebsocketCommunicator
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 
-from lists_app.models import GroceryList, Item, Section, SectionKeyword
+from lists_app.models import AccessToken, GroceryList, Item, Section, SectionKeyword
 from lists_app.services.section_assigner import (
     assign_section,
     _match_keywords,
@@ -40,6 +41,27 @@ class GroceryListModelTest(TestCase):
         qs = GroceryList.objects.all()
         self.assertEqual(qs[0].name, "B")
         self.assertEqual(qs[1].name, "A")
+
+
+class AccessTokenModelTest(TestCase):
+    def test_create_auto_generates_token(self):
+        t = AccessToken.objects.create(label="Test link")
+        self.assertIsNotNone(t.token)
+        self.assertEqual(len(t.token), 43)  # 32 bytes url-safe base64
+        self.assertFalse(t.revoked)
+        self.assertEqual(t.label, "Test link")
+
+    def test_revoked_default_false(self):
+        t = AccessToken.objects.create()
+        self.assertFalse(t.revoked)
+
+    def test_str_uses_label_when_set(self):
+        t = AccessToken.objects.create(label="Marie's phone")
+        self.assertEqual(str(t), "Marie's phone")
+
+    def test_str_uses_token_preview_when_no_label(self):
+        t = AccessToken.objects.create(token="abcd1234xyz")
+        self.assertEqual(str(t), "abcd1234…")
 
 
 class ItemModelTest(TestCase):
@@ -92,6 +114,93 @@ class SectionAssignerTest(TestCase):
         self.assertEqual(section.name_slug, "epicerie")
 
 
+class GateViewTest(TestCase):
+    """Tests for /enter/<token>/ (secret URL gate)."""
+
+    def test_valid_token_sets_session_and_redirects_to_root(self):
+        t = AccessToken.objects.create(token="valid-token-123", label="Test")
+        client = Client()
+        response = client.get("/enter/valid-token-123/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+        self.assertEqual(client.session.get("secret_url_token_id"), t.id)
+
+    def test_invalid_token_redirects_to_auth_required_revoked(self):
+        client = Client()
+        response = client.get("/enter/nonexistent-token/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/auth/required/", response.url)
+        self.assertIn("revoked=1", response.url)
+
+    def test_revoked_token_redirects_to_auth_required_revoked(self):
+        AccessToken.objects.create(token="revoked-token", revoked=True)
+        client = Client()
+        response = client.get("/enter/revoked-token/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/auth/required/", response.url)
+        self.assertIn("revoked=1", response.url)
+
+
+class AuthRequiredViewTest(TestCase):
+    """Tests for /auth/required/ page."""
+
+    def test_auth_required_returns_200(self):
+        client = Client()
+        response = client.get("/auth/required/")
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn("Accès restreint", content)
+        self.assertIn("lien secret", content)
+
+    def test_auth_required_revoked_shows_revoked_message(self):
+        client = Client()
+        response = client.get("/auth/required/?revoked=1")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("révoqué", response.content.decode("utf-8"))
+
+
+@override_settings(SECRET_URL_AUTH_REQUIRED=True)
+class SecretURLMiddlewareTest(TestCase):
+    """Tests for SecretURLRequiredMiddleware when auth is required."""
+
+    def test_no_session_redirects_to_auth_required(self):
+        client = Client()
+        response = client.get("/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/auth/required/")
+
+    def test_no_session_api_redirects_to_auth_required(self):
+        client = Client()
+        response = client.get("/api/lists/")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/auth/required/")
+
+    def test_valid_token_in_session_allows_request(self):
+        AccessToken.objects.create(token="middleware-test-token")
+        client = Client()
+        client.get("/enter/middleware-test-token/")  # set session
+        response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_revoked_token_redirects_and_flushes_session(self):
+        t = AccessToken.objects.create(token="will-revoke", label="Revoke me")
+        client = Client()
+        client.get("/enter/will-revoke/")  # set session
+        t.revoked = True
+        t.save()
+        response = client.get("/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("revoked=1", response.url)
+        self.assertNotIn("secret_url_token_id", client.session)
+
+    def test_skip_paths_not_redirected(self):
+        """Paths in skip list (e.g. /auth/required/) are not redirected by middleware."""
+        client = Client()
+        response = client.get("/auth/required/")
+        self.assertEqual(response.status_code, 200)
+
+
+@override_settings(SECRET_URL_AUTH_REQUIRED=False)
 class ApiListsTest(TestCase):
     def setUp(self):
         self.client = Client()
@@ -144,6 +253,7 @@ class ApiListsTest(TestCase):
         self.assertFalse(GroceryList.objects.filter(pk=gl.id).exists())
 
 
+@override_settings(SECRET_URL_AUTH_REQUIRED=False)
 class ApiItemsTest(TestCase):
     def setUp(self):
         self.client = Client()
@@ -193,9 +303,9 @@ class ApiItemsTest(TestCase):
         self.assertFalse(Item.objects.filter(pk=item.id).exists())
 
 
+@override_settings(SECRET_URL_AUTH_REQUIRED=False)
 class WebSocketTest(TestCase):
     def test_connect_invalid_list_id_rejected(self):
-        import asyncio
         from grocery_project.asgi import application as ws_application
 
         async def run():
@@ -209,7 +319,6 @@ class WebSocketTest(TestCase):
         self.assertFalse(connected)
 
     def test_connect_nonexistent_list_rejected(self):
-        import asyncio
         from grocery_project.asgi import application as ws_application
 
         async def run():
@@ -217,6 +326,21 @@ class WebSocketTest(TestCase):
                 ws_application,
                 "/ws/list/12345678-1234-1234-1234-123456789abc/",
             )
+            connected, _ = await communicator.connect()
+            return connected
+
+        connected = asyncio.run(run())
+        self.assertFalse(connected)
+
+    @override_settings(SECRET_URL_AUTH_REQUIRED=True)
+    def test_connect_without_secret_url_session_rejected(self):
+        """With SECRET_URL_AUTH_REQUIRED=True, WebSocket is rejected when session has no token."""
+        from grocery_project.asgi import application as ws_application
+
+        gl = GroceryList.objects.create(name="Test list")
+
+        async def run():
+            communicator = WebsocketCommunicator(ws_application, f"/ws/list/{gl.id}/")
             connected, _ = await communicator.connect()
             return connected
 

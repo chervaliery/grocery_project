@@ -49,7 +49,7 @@
       vm.listId = $routeParams.listId;
       vm.list = null;
       vm.sections = [];
-      vm.hideChecked = false;
+      vm.hideChecked = true;
       vm.newItemName = '';
       vm.loading = true;
       vm.error = null;

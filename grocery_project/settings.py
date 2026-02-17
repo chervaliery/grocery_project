@@ -32,6 +32,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "lists_app.middleware.SecretURLRequiredMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -40,6 +41,14 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "grocery_project.urls"
+
+# When True, app and API require a valid secret-URL token in session (see lists_app.middleware).
+SECRET_URL_AUTH_REQUIRED = os.environ.get(
+    "SECRET_URL_AUTH_REQUIRED", "true"
+).lower() in ("1", "true", "yes")
+
+# Session cookie valid for 10 years (secret-URL sessions; default is 14 days).
+SESSION_COOKIE_AGE = 10 * 365 * 24 * 60 * 60  # 10 years in seconds
 
 TEMPLATES = [
     {

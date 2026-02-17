@@ -11,10 +11,11 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.forms import ValidationError
 
-from lists_app.models import GroceryList, Item
+from lists_app.models import AccessToken, GroceryList, Item
 from lists_app.serializers import list_detail_to_dict
 from lists_app.services import item_service as item_svc
 from lists_app.utils import parse_uuid
+from lists_app.views import SESSION_ACCESS_TOKEN_ID_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,34 @@ def ws_reorder_items(list_id, section_order=None, item_orders=None):
     return _do_reorder(list_id, section_order=section_order, item_orders=item_orders)
 
 
+def _is_token_valid(token_id):
+    """Return True if token_id exists and is not revoked."""
+    if not token_id:
+        return False
+    try:
+        t = AccessToken.objects.get(pk=token_id)
+        return not t.revoked
+    except AccessToken.DoesNotExist:
+        return False
+
+
+@database_sync_to_async
+def check_access_token(token_id):
+    return _is_token_valid(token_id)
+
+
+@database_sync_to_async
+def get_token_id_from_scope(scope):
+    """Read session in sync thread (session backend may do blocking I/O)."""
+    session = scope.get("session")
+    if session is None:
+        return None
+    try:
+        return session.get(SESSION_ACCESS_TOKEN_ID_KEY)
+    except Exception:
+        return None
+
+
 class ListConsumer(AsyncWebsocketConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -93,6 +122,14 @@ class ListConsumer(AsyncWebsocketConsumer):
         self.room_name = None
 
     async def connect(self):
+        from django.conf import settings
+
+        if getattr(settings, "SECRET_URL_AUTH_REQUIRED", True):
+            token_id = await get_token_id_from_scope(self.scope)
+            if not await check_access_token(token_id):
+                logger.warning("ws connect rejected: no valid secret URL token")
+                await self.close(code=4401)
+                return
         self.list_id = self.scope["url_route"]["kwargs"].get("list_id")
         if not self.list_id:
             logger.warning("ws connect rejected: missing list_id")

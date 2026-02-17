@@ -1,6 +1,6 @@
 # Liste de courses (Grocery List)
 
-Application web de listes de courses pour usage personnel, conçue pour mobile. Plusieurs appareils peuvent ouvrir la même liste en même temps et voir les modifications en temps réel (WebSocket). Pas d’authentification : l’accès se fait par URL de liste.
+Application web de listes de courses pour usage personnel, conçue pour mobile. Plusieurs appareils peuvent ouvrir la même liste en même temps et voir les modifications en temps réel (WebSocket). L’accès se fait par URL de liste ; en production, l’accès peut être restreint par des liens secrets (voir Déploiement).
 
 ## Fonctionnalités
 
@@ -42,6 +42,7 @@ Variables d’environnement utiles :
 | `LLM_API_URL`  | (Optionnel) URL de l’API (défaut : OpenAI). |
 | `LOG_LEVEL`    | (Optionnel) Niveau de log : `WARNING` (défaut), `INFO`, `DEBUG`. Pour activer les logs informatifs ou de debug (ex. assignation de section, mots-clés appris), mettre `INFO` ou `DEBUG`. |
 | `LOG_FILE`     | (Production) Chemin du fichier de log (ex. `/var/log/grocery_list/app.log`). Si défini, les logs sont aussi écrits dans ce fichier. |
+| `SECRET_URL_AUTH_REQUIRED` | (Optionnel) `true` / `false` (défaut : `true`). Si `false`, l'app et l'API sont accessibles sans lien secret (développement ou si la protection est gérée autrement). |
 | `REDIS_URL`    | (Optionnel) Pour production avec Redis comme channel layer (ex. `redis://localhost:6379/0`). |
 
 En développement, une base SQLite est utilisée (`db.sqlite3` à la racine du projet).
@@ -236,6 +237,11 @@ sudo logrotate -d /etc/logrotate.d/grocery-list
 ```
 
 Contenu type de `deploy/logrotate.grocery-list` : rotation quotidienne, conservation 14 jours, compression, `create 0640 grocery grocery`, `missingok`, `notifempty`.
+
+### 8. Accès par lien secret (intégré)
+
+L’application peut aussi être protégée par **liens secrets** : un administrateur crée des liens dans l’interface d’administration Django (modèle « Liens d’accès » / Access tokens) ; chaque lien est une URL du type `https://list.example.com/enter/TOKEN/`. Lorsqu’un utilisateur ouvre cette URL, une session est créée et il accède à l’app (listes, API, WebSocket). Il n’y a **pas d’expiration** : la session reste valide tant que le lien n’est pas révoqué. Dès qu’un administrateur révoque le lien dans l’admin, toute session créée via ce lien est invalidée (l’utilisateur est redirigé vers une page « Accès restreint » au prochain chargement).
+
 
 ## Licence
 

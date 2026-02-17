@@ -1,7 +1,8 @@
 """
-Models for lists_app: Section, GroceryList, Item.
+Models for lists_app: Section, GroceryList, Item, AccessToken.
 """
 
+import secrets
 import uuid
 
 from django.db import models
@@ -74,3 +75,23 @@ class Item(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class AccessToken(models.Model):
+    """Secret URL token for app access. Admin generates; visiting the URL grants a session until revoked."""
+
+    token = models.CharField(max_length=64, unique=True, db_index=True, blank=True)
+    label = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    revoked = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.label or (self.token[:8] + "…" if self.token else "—")
