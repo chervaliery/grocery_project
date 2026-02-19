@@ -30,7 +30,7 @@
         </div>
         <div class="swipe-content position-relative">
           <a ng-click="vm.openList(list.id)" class="d-block p-3 text-decoration-none">
-            {{ list.name }} <span class="text-muted small">({{ list.created_at | date:'shortDate' }})</span>
+            {{ list.name }} <span class="text-muted small">({{ list.created_at | date:'dd/MM/yyyy' }})</span>
             <span class="text-muted small d-block mt-1" ng-if="list.items_count != null">{{ list.items_checked || 0 }} / {{ list.items_count }} articles</span>
           </a>
         </div>
