@@ -5,7 +5,6 @@ Secrets and environment-specific values loaded from environment.
 
 import os
 from pathlib import Path
-from urllib.parse import urlparse, unquote
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
