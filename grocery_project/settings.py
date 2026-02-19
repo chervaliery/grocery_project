@@ -16,11 +16,15 @@ SECRET_KEY = os.environ.get(
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes")
 
 ALLOWED_HOSTS = [
-    h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()
+    h.strip()
+    for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if h.strip()
 ]
 
 # Django 4+ CSRF origin check: request Origin must be in this list (e.g. https://list.example.com)
-CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS] + [f"http://{h}" for h in ALLOWED_HOSTS]
+CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS] + [
+    f"http://{h}" for h in ALLOWED_HOSTS
+]
 
 INSTALLED_APPS = [
     "daphne",
@@ -74,25 +78,25 @@ TEMPLATES = [
 WSGI_APPLICATION = "grocery_project.wsgi.application"
 
 
-if os.environ.get('USE_MARIADB'):
+if os.environ.get("USE_MARIADB"):
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.environ.get('MARIADB_NAME', 'grocery'),
-            'USER': os.environ.get('MARIADB_USER', 'grocery'),
-            'PASSWORD': os.environ.get('MARIADB_PASSWORD', 'grocery'),
-            'HOST': os.environ.get('MARIADB_HOST', 'localhost'),
-            'PORT': os.environ.get('MARIADB_PORT', '3306'),
-            'OPTIONS': {
-                'charset': 'utf8mb4',
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": os.environ.get("MARIADB_NAME", "grocery"),
+            "USER": os.environ.get("MARIADB_USER", "grocery"),
+            "PASSWORD": os.environ.get("MARIADB_PASSWORD", "grocery"),
+            "HOST": os.environ.get("MARIADB_HOST", "localhost"),
+            "PORT": os.environ.get("MARIADB_PORT", "3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
             },
         }
     }
 else:
     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 
