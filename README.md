@@ -47,8 +47,9 @@ Variables d’environnement utiles :
 | `LOG_FILE`     | (Production) Chemin du fichier de log (ex. `/var/log/grocery_list/app.log`). Si défini, les logs sont aussi écrits dans ce fichier. |
 | `SECRET_URL_AUTH_REQUIRED` | (Optionnel) `true` / `false` (défaut : `true`). Si `false`, l'app et l'API sont accessibles sans lien secret (développement ou si la protection est gérée autrement). |
 | `REDIS_URL`    | (Optionnel) Pour production avec Redis comme channel layer (ex. `redis://localhost:6379/0`). |
+| `DATABASE_URL` | (Production) URL de la base de données. Si absent, SQLite est utilisée (`db.sqlite3`). Pour MariaDB/MySQL : `mysql://utilisateur:mot_de_passe@localhost:3306/nom_base`. Les caractères spéciaux dans le mot de passe doivent être encodés en URL. |
 
-En développement, une base SQLite est utilisée (`db.sqlite3` à la racine du projet).
+Par défaut (développement, sans `DATABASE_URL`), l’application utilise SQLite. En production, définissez `DATABASE_URL` avec une URL MariaDB/MySQL pour utiliser un serveur dédié.
 
 **Mots-clés de section** : les associations mot-clé → section sont en base (modèle `SectionKeyword`). Une migration initiale remplit les mots-clés par défaut. Quand le LLM attribue une section à un article, le nom normalisé de l’article est enregistré comme nouveau mot-clé. Vous pouvez consulter ou modifier les mots-clés via l’interface d’administration Django (`/admin/`).
 
@@ -83,9 +84,11 @@ Procédure complète pour déployer en production avec logs dans `/var/log/groce
 
 ```bash
 sudo apt update
-sudo apt install -y python3.12 python3.12-venv apache2 redis-server
+sudo apt install -y python3.12 python3.12-venv apache2 redis-server mariadb-server libmariadb-dev pkg-config
 sudo a2enmod proxy proxy_http proxy_wstunnel ssl headers
 sudo systemctl enable apache2
+sudo systemctl enable mariadb
+sudo systemctl start mariadb
 ```
 
 Si vous utilisez Redis comme channel layer (recommandé en production pour les WebSockets multi-processus), activez-le :
@@ -104,7 +107,27 @@ sudo mkdir -p /var/log/grocery_list
 sudo chown grocery:grocery /var/log/grocery_list
 ```
 
-La base SQLite sera créée dans le répertoire de l’application (`/opt/grocery_project/db.sqlite3` par défaut). Pour la placer ailleurs (ex. `/var/lib/grocery_list/db.sqlite3`), créez le répertoire, donnez les droits à l’utilisateur `grocery`, et configurez `DATABASE_URL` ou adaptez `settings.py` pour utiliser un chemin d’environnement.
+Si `DATABASE_URL` est défini (MariaDB en production), aucun fichier de base n’est créé dans ce répertoire. Sans `DATABASE_URL`, l’application utilise SQLite et crée `db.sqlite3` dans le répertoire de l’application (développement ou déploiement sans MariaDB).
+
+### 2.1 Base de données MariaDB
+
+Créez une base et un utilisateur dédié (ne pas utiliser l’utilisateur root MySQL pour l’application) :
+
+```bash
+sudo mariadb
+```
+
+Dans le client MariaDB :
+
+```sql
+CREATE DATABASE grocery_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'grocery_app'@'localhost' IDENTIFIED BY 'VOTRE_MOT_DE_PASSE_FORT';
+GRANT ALL PRIVILEGES ON grocery_db.* TO 'grocery_app'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+Remplacez `VOTRE_MOT_DE_PASSE_FORT` par un mot de passe sécurisé. Vous utiliserez cet utilisateur et cette base dans `DATABASE_URL` (voir étape 4).
 
 ### 3. Déploiement de l’application
 
@@ -127,6 +150,7 @@ Définir au minimum pour la production :
 | `DJANGO_SECRET_KEY` | Clé forte (obligatoire). |
 | `DJANGO_DEBUG` | `false` |
 | `ALLOWED_HOSTS` | `list.example.com` |
+| `DATABASE_URL` | URL MariaDB (obligatoire en production si vous utilisez MariaDB), ex. `mysql://grocery_app:VOTRE_MOT_DE_PASSE@localhost:3306/grocery_db`. À mettre dans le fichier d’environnement ou les secrets, jamais dans le dépôt. |
 | `LOG_LEVEL` | `WARNING` ou `INFO` |
 | `LOG_FILE` | `/var/log/grocery_list/app.log` |
 | `REDIS_URL` | (optionnel) `redis://127.0.0.1:6379/0` pour le channel layer |

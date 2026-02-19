@@ -5,6 +5,7 @@ Secrets and environment-specific values loaded from environment.
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -15,7 +16,12 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()
+]
+
+# Django 4+ CSRF origin check: request Origin must be in this list (e.g. https://list.example.com)
+CSRF_TRUSTED_ORIGINS = [f"https://{h}" for h in ALLOWED_HOSTS] + [f"http://{h}" for h in ALLOWED_HOSTS]
 
 INSTALLED_APPS = [
     "daphne",
@@ -68,12 +74,24 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "grocery_project.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+_default_db = {
+    "ENGINE": "django.db.backends.sqlite3",
+    "NAME": BASE_DIR / "db.sqlite3",
 }
+_database_url = os.environ.get("DATABASE_URL")
+if _database_url:
+    _parsed = urlparse(_database_url)
+    if _parsed.scheme in ("mysql", "mariadb"):
+        _default_db = {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": (unquote(_parsed.path) or "").lstrip("/") or "grocery_db",
+            "USER": unquote(_parsed.username) if _parsed.username else "",
+            "PASSWORD": unquote(_parsed.password) if _parsed.password else "",
+            "HOST": _parsed.hostname or "localhost",
+            "PORT": _parsed.port or 3306,
+            "OPTIONS": {"charset": "utf8mb4"},
+        }
+DATABASES = {"default": _default_db}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
