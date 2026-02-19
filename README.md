@@ -41,6 +41,12 @@ Variables d’environnement utiles :
 | `DJANGO_SECRET_KEY` | Clé secrète Django (obligatoire en production). |
 | `DJANGO_DEBUG` | `true` / `false` (défaut : `true`). |
 | `ALLOWED_HOSTS` | Liste d’hôtes séparés par des virgules (ex. `localhost,list.example.com`). |
+| `USE_MARIADB` | Pour utiliser MariaDB en production au lieu de SQLite |
+| `MARIADB_NAME` | Nom de la DB pour MariaDB |
+| `MARIADB_USER` | Nom de l'utilisateur pour MariaDB |
+| `MARIADB_PASSWORD` | Mot de passe pour MariaDB |
+| `MARIADB_HOST` | Hostname ou IP pour MariaDB |
+| `MARIADB_PORT` | Port pour MariaDB |
 | `LLM_API_KEY`  | (Optionnel) Clé API pour le classement des articles par LLM (sections en français). |
 | `LLM_API_URL`  | (Optionnel) URL de l’API (défaut : OpenAI). |
 | `LOG_LEVEL`    | (Optionnel) Niveau de log : `WARNING` (défaut), `INFO`, `DEBUG`. Pour activer les logs informatifs ou de debug (ex. assignation de section, mots-clés appris), mettre `INFO` ou `DEBUG`. |
@@ -150,7 +156,12 @@ Définir au minimum pour la production :
 | `DJANGO_SECRET_KEY` | Clé forte (obligatoire). |
 | `DJANGO_DEBUG` | `false` |
 | `ALLOWED_HOSTS` | `list.example.com` |
-| `DATABASE_URL` | URL MariaDB (obligatoire en production si vous utilisez MariaDB), ex. `mysql://grocery_app:VOTRE_MOT_DE_PASSE@localhost:3306/grocery_db`. À mettre dans le fichier d’environnement ou les secrets, jamais dans le dépôt. |
+| `USE_MARIADB` | `true` |
+| `MARIADB_NAME` | `grocery` |
+| `MARIADB_USER` | `grocery` |
+| `MARIADB_PASSWORD` | `grocery` |
+| `MARIADB_HOST` | `localhost` |
+| `MARIADB_PORT` | `3306` |
 | `LOG_LEVEL` | `WARNING` ou `INFO` |
 | `LOG_FILE` | `/var/log/grocery_list/app.log` |
 | `REDIS_URL` | (optionnel) `redis://127.0.0.1:6379/0` pour le channel layer |

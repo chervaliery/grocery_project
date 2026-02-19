@@ -74,24 +74,28 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "grocery_project.wsgi.application"
 
-_default_db = {
-    "ENGINE": "django.db.backends.sqlite3",
-    "NAME": BASE_DIR / "db.sqlite3",
-}
-_database_url = os.environ.get("DATABASE_URL")
-if _database_url:
-    _parsed = urlparse(_database_url)
-    if _parsed.scheme in ("mysql", "mariadb"):
-        _default_db = {
-            "ENGINE": "django.db.backends.mysql",
-            "NAME": (unquote(_parsed.path) or "").lstrip("/") or "grocery_db",
-            "USER": unquote(_parsed.username) if _parsed.username else "",
-            "PASSWORD": unquote(_parsed.password) if _parsed.password else "",
-            "HOST": _parsed.hostname or "localhost",
-            "PORT": _parsed.port or 3306,
-            "OPTIONS": {"charset": "utf8mb4"},
+
+if os.environ.get('USE_MARIADB'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('MARIADB_NAME', 'grocery'),
+            'USER': os.environ.get('MARIADB_USER', 'grocery'),
+            'PASSWORD': os.environ.get('MARIADB_PASSWORD', 'grocery'),
+            'HOST': os.environ.get('MARIADB_HOST', 'localhost'),
+            'PORT': os.environ.get('MARIADB_PORT', '3306'),
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+            },
         }
-DATABASES = {"default": _default_db}
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
