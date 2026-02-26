@@ -648,3 +648,115 @@ textarea.form-control:focus {
 .list-detail .empty-state p {
   margin: 0;
 }
+
+/* ========== Mobile usability: larger text and touch targets ========== */
+@media (max-width: 767px) {
+  html {
+    font-size: 18px;
+  }
+
+  body {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .container-fluid {
+    padding: var(--app-space-md) var(--app-space);
+  }
+
+  .app-header {
+    min-height: 56px;
+    padding: var(--app-space) 0;
+  }
+
+  .app-header-title {
+    font-size: 1.35rem;
+  }
+
+  .list-detail .app-header .app-header-title {
+    font-size: 1.2rem;
+  }
+
+  .list-detail .app-header .back-link {
+    font-size: 1rem;
+  }
+
+  .form-control,
+  input.form-control,
+  textarea.form-control,
+  .list-detail .add-item-card .form-control,
+  .list-detail .add-item-card .btn {
+    font-size: 1rem;
+    min-height: 44px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .list-detail .add-item-card .add-item-qty {
+    min-width: 64px;
+  }
+
+  .btn {
+    font-size: 1rem;
+    padding: 0.5rem 0.9rem;
+    min-height: 44px;
+  }
+
+  .list-selection .list-group-item {
+    min-height: 56px;
+  }
+
+  .list-selection .list-group-item .swipe-content a {
+    padding: var(--app-space) var(--app-space-md);
+    font-size: 1rem;
+  }
+
+  .list-selection .list-group-item .text-muted.small {
+    font-size: 0.95rem;
+  }
+
+  .list-detail .section h2 {
+    font-size: 1rem;
+    padding: var(--app-space-sm) 0;
+  }
+
+  .list-detail .section .list-group-item {
+    min-height: 52px;
+    padding: var(--app-space-md) var(--app-space);
+    font-size: 1rem;
+  }
+
+  .list-detail .section .list-group-item .text-muted.small {
+    font-size: 0.95rem;
+  }
+
+  .list-detail .section .list-group-item .btn-link.btn-sm {
+    font-size: 1rem;
+    padding: 6px 8px;
+  }
+
+  .list-detail .section .list-group-item .btn-outline-danger {
+    min-height: 36px;
+    min-width: 36px;
+    font-size: 0.9rem;
+  }
+
+  .list-detail .toggle-switch {
+    font-size: 1rem;
+  }
+
+  .archived-toggle,
+  .list-detail .add-item-card .btn-outline-secondary {
+    font-size: 1rem;
+    min-height: 44px;
+  }
+
+  .modal-body,
+  .modal-header,
+  .modal-footer {
+    font-size: 1rem;
+  }
+
+  .list-detail .empty-state {
+    font-size: 1rem;
+  }
+}
