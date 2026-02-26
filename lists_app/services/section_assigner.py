@@ -98,12 +98,16 @@ def normalize_import_with_llm(raw_text: str) -> list[dict]:
     valid_slugs = set(slug for slug, _ in section_list)
     prompt = (
         "L'utilisateur a collé une liste de courses en texte libre. Elle peut être désordonnée "
-        "(formats variés : « Nom : quantité », « quantité nom », tirets, numéros, etc.). Certaines lignes peuvent contenir des élement à ignorer comme le titre d'un section.\n"
+        "(formats variés : « Nom : quantité », « quantité nom », tirets, numéros, etc.). Certaines lignes peuvent contenir des éléments à ignorer comme le titre d'une section.\n"
         "Normalise-la en un tableau JSON. Chaque élément doit être un objet avec exactement :\n"
-        '- "name" : string (nom de l\'article normalisé avec une majuscule sans les details autours)\n'
+        '- "name" : string (nom de l\'article normalisé)\n'
         '- "quantity" : string (quantité, peut être "" si aucune)\n'
         '- "section_slug" : string ou null (un des slugs ci-dessous, ou null si inconnu)\n'
-        f"Sections autorisées (slug=label) : {sections_fr}.\n"
+        f"Sections autorisées (slug=label) : {sections_fr}.\n\n"
+        "Règles pour le nom (name) :\n"
+        "- Une seule majuscule en début de mot, orthographe française correcte (apostrophe : d'olive, l'eau, pas d'espace avant l'apostrophe).\n"
+        "- Nom court et courant comme en liste de courses : préférer « Oeufs » plutôt que « Jaune d'oeuf », « Bœuf haché » plutôt que « Viande hachée de bœuf », « Huile d'olive » (avec apostrophe) plutôt que « Huile d olive ». Supprimer les tournures redondantes (ex. « Viande de X » → « X » quand c'est l'ingrédient principal).\n"
+        "- Pas de détails superflus ; garder l'essentiel pour identifier l'article.\n\n"
         "Réponds UNIQUEMENT par le tableau JSON minifié, sans markdown, sans explication.\n\n"
         "Liste collée par l'utilisateur :\n"
         f"{text}"
@@ -147,6 +151,12 @@ def normalize_import_with_llm(raw_text: str) -> list[dict]:
                     "quantity": quantity,
                     "section_slug": section_slug,
                 }
+            )
+            logger.info(
+                "LLM import entry: name=%r quantity=%r section_slug=%s",
+                name,
+                quantity or "(empty)",
+                section_slug or "(null)",
             )
         logger.info("LLM import normalized count=%d", len(result))
         return result
