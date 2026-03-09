@@ -77,8 +77,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "grocery_project.wsgi.application"
 
-
-if os.environ.get("USE_MARIADB"):
+if os.environ.get("USE_MARIADB", "false").lower() in ("1", "true", "yes"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.mysql",
@@ -117,7 +116,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "lists_app" / "static"]
+STATICFILES_DIRS = []  # App static files are found via AppDirectoriesFinder
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Security (production: set via env and use HTTPS)

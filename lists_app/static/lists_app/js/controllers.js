@@ -44,7 +44,7 @@
       };
       load();
     })
-    .controller('ListDetailCtrl', function ($routeParams, $location, ListsApi, ListWebSocket) {
+    .controller('ListDetailCtrl', function ($routeParams, $location, $scope, ListsApi, ListWebSocket) {
       var vm = this;
       vm.listId = $routeParams.listId;
       vm.list = null;
@@ -53,6 +53,9 @@
       vm.newItemName = '';
       vm.loading = true;
       vm.error = null;
+      vm.wsConnectionState = 'connecting';
+      vm.showReconnectPopup = false;
+      var reconnectPopupTimer = null;
       function applyList(data) {
         vm.list = data;
         vm.sections = data.sections || [];
@@ -67,6 +70,27 @@
           vm.loading = false;
         });
       }
+      function onWsStateChange(state) {
+        vm.wsConnectionState = state;
+        if (state === 'connected' || state === 'connecting') {
+          vm.showReconnectPopup = false;
+          if (reconnectPopupTimer) { clearTimeout(reconnectPopupTimer); reconnectPopupTimer = null; }
+        } else if (state === 'disconnected') {
+          reconnectPopupTimer = setTimeout(function () {
+            reconnectPopupTimer = null;
+            $scope.$apply(function () { vm.showReconnectPopup = true; });
+          }, 2000);
+        }
+      }
+      vm.reconnectWs = function () {
+        ListWebSocket.reconnect();
+      };
+      vm.dismissReconnectPopup = function () {
+        vm.showReconnectPopup = false;
+      };
+      $scope.$on('$destroy', function () {
+        if (reconnectPopupTimer) clearTimeout(reconnectPopupTimer);
+      });
       ListWebSocket.connect(vm.listId, function (msg) {
         if (msg.action === 'list_updated' && msg.list) applyList(msg.list);
         if (msg.action === 'item_added' && msg.item) {
@@ -92,7 +116,7 @@
             s.items = (s.items || []).filter(function (it) { return it.id !== msg.item_id; });
           });
         }
-      });
+      }, onWsStateChange);
       vm.newItemQuantity = '';
       vm.newItemNotes = '';
       vm.importText = '';

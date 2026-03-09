@@ -44,15 +44,58 @@
       var listId = null;
       var reconnectTimer = null;
       var currentOnMessage = null;
+      var onStateChange = null;
+      var connectionState = 'disconnected';
+      var reconnectAttempts = 0;
+      var maxAutoReconnectAttempts = 5;
+
+      function setState(state) {
+        if (connectionState === state) return;
+        connectionState = state;
+        if (onStateChange) {
+          $rootScope.$evalAsync(function () { onStateChange(state); });
+        }
+      }
+
+      function tryReconnect() {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        if (reconnectAttempts >= maxAutoReconnectAttempts) return;
+        reconnectAttempts += 1;
+        reconnectTimer = setTimeout(function () {
+          reconnectTimer = null;
+          if (listId && currentOnMessage) api.connect(listId, currentOnMessage, onStateChange);
+        }, 3000);
+      }
+
+      if (typeof document !== 'undefined' && document.addEventListener) {
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState !== 'visible') return;
+          if (!listId || !currentOnMessage) return;
+          if (connectionState === 'connected') return;
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+          reconnectAttempts = 0;
+          if (ws) try { ws.close(); ws = null; } catch (e) {}
+          api.connect(listId, currentOnMessage, onStateChange);
+        });
+      }
+
       var api = {
-        connect: function (lid, onMessage) {
-          if (ws && listId === lid) return;
+        connect: function (lid, onMessage, stateCallback) {
+          if (ws && listId === lid && connectionState !== 'disconnected') return;
           listId = lid;
           currentOnMessage = onMessage;
+          onStateChange = stateCallback || null;
           if (ws) try { ws.close(); } catch (e) {}
+          ws = null;
+          setState('connecting');
           var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
           var url = proto + '//' + window.location.host + '/ws/list/' + lid + '/';
           ws = new WebSocket(url);
+          ws.onopen = function () {
+            reconnectAttempts = 0;
+            setState('connected');
+          };
           ws.onmessage = function (event) {
             try {
               var data = JSON.parse(event.data);
@@ -60,11 +103,18 @@
             } catch (e) {}
           };
           ws.onclose = function () {
-            if (reconnectTimer) clearTimeout(reconnectTimer);
-            reconnectTimer = setTimeout(function () {
-              if (listId && currentOnMessage) api.connect(listId, currentOnMessage);
-            }, 3000);
+            ws = null;
+            setState('disconnected');
+            tryReconnect();
           };
+        },
+        getConnectionState: function () { return connectionState; },
+        reconnect: function () {
+          if (reconnectTimer) clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+          reconnectAttempts = 0;
+          if (ws) try { ws.close(); ws = null; } catch (e) {}
+          if (listId && currentOnMessage) api.connect(listId, currentOnMessage, onStateChange);
         },
         send: function (payload) {
           if (ws && ws.readyState === WebSocket.OPEN)
@@ -73,9 +123,12 @@
         disconnect: function () {
           if (reconnectTimer) clearTimeout(reconnectTimer);
           reconnectTimer = null;
+          reconnectAttempts = 0;
           listId = null;
           currentOnMessage = null;
+          onStateChange = null;
           if (ws) try { ws.close(); ws = null; } catch (e) {}
+          setState('disconnected');
         }
       };
       return api;

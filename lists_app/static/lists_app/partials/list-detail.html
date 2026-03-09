@@ -7,10 +7,19 @@
         <button type="button" class="btn btn-link btn-sm p-0 ms-1" ng-click="vm.startEditListName()" title="Modifier le nom">✎</button>
       </h1>
     </div>
-    <button type="button" class="theme-toggle" title="Basculer clair / sombre" aria-label="Basculer thème clair ou sombre">
+    <span class="ws-status-dot ms-2"
+          ng-class="{'ws-status-dot--connected': vm.wsConnectionState === 'connected', 'ws-status-dot--disconnected': vm.wsConnectionState === 'disconnected', 'ws-status-dot--connecting': vm.wsConnectionState === 'connecting'}"
+          title="{{ vm.wsConnectionState === 'connected' ? 'Connecté' : (vm.wsConnectionState === 'connecting' ? 'Connexion…' : 'Déconnecté') }}"
+          aria-label="{{ vm.wsConnectionState === 'connected' ? 'Connecté' : (vm.wsConnectionState === 'connecting' ? 'Connexion en cours' : 'Déconnecté') }}"></span>
+    <button type="button" class="theme-toggle ms-2" title="Basculer clair / sombre" aria-label="Basculer thème clair ou sombre">
       <span class="theme-toggle-icon" data-sun="☀" data-moon="☽">☽</span>
     </button>
   </header>
+  <div class="ws-reconnect-banner" ng-if="vm.showReconnectPopup">
+    <p class="mb-2">Connexion perdue. Les modifications ne seront pas synchronisées.</p>
+    <button type="button" class="btn btn-primary btn-sm me-2" ng-click="vm.reconnectWs()">Reconnecter</button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="vm.dismissReconnectPopup()">Fermer</button>
+  </div>
   <p ng-if="vm.error" class="text-danger">{{ vm.error }}</p>
   <div ng-if="vm.loading" class="app-loading">
     <span class="app-loading-spinner"></span>
