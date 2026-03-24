@@ -13,6 +13,7 @@ Application web de listes de courses pour usage personnel, conçue pour mobile. 
 - Réordonner les articles par glisser-déposer (poignée ⋮⋮) dans chaque section.
 - Mise à jour en temps réel sur tous les onglets / appareils ouverts sur la même liste.
 - Import Quitoque (optionnel) : depuis le modal d’import, coller l’URL d’une fiche recette sur **www.quitoque.fr** ; le serveur ouvre un Firefox headless, se connecte avec les identifiants définis en variables d’environnement, extrait les ingrédients « Dans votre box » et ajoute les articles comme pour un import classique.
+- **Notes recettes** : modal listant des liens cliquables (http/https) ; l’URL Quitoque est enregistrée automatiquement après un import réussi ; vous pouvez ajouter d’autres liens manuellement. Les liens sont stockés sur la liste (champ `recipe_links` en base).
 
 ## Prérequis
 

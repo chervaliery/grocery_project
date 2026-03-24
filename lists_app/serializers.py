@@ -3,6 +3,7 @@ Simple serialization for API responses. No DRF dependency.
 """
 
 from datetime import date
+from urllib.parse import urlparse
 
 from django.forms import ValidationError
 
@@ -13,6 +14,9 @@ MAX_LIST_NAME = 200
 MAX_ITEM_NAME = 200
 MAX_QUANTITY = 80
 MAX_NOTES = 2000
+MAX_RECIPE_LINKS = 50
+MAX_RECIPE_URL_LEN = 2000
+RECIPE_LINK_SCHEMES = frozenset({"http", "https"})
 
 
 def section_to_dict(section: Section) -> dict:
@@ -25,12 +29,16 @@ def section_to_dict(section: Section) -> dict:
 
 
 def list_to_dict(grocery_list: GroceryList) -> dict:
+    links = grocery_list.recipe_links
+    if not isinstance(links, list):
+        links = []
     return {
         "id": str(grocery_list.id),
         "name": grocery_list.name,
         "created_at": grocery_list.created_at.isoformat(),
         "archived": grocery_list.archived,
         "position": grocery_list.position,
+        "recipe_links": [str(x) for x in links if x],
     }
 
 
@@ -80,6 +88,37 @@ def validate_list_name(name) -> str:
         return default_list_name()
     s = str(name).strip()[:MAX_LIST_NAME]
     return s or default_list_name()
+
+
+def validate_recipe_links(value) -> list[str]:
+    """Validate list of recipe URLs; only http/https with host. Dedupes, max count."""
+    if value is None:
+        raise ValidationError("recipe_links requis.")
+    if not isinstance(value, list):
+        raise ValidationError("recipe_links doit être une liste.")
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in value:
+        if len(out) >= MAX_RECIPE_LINKS:
+            raise ValidationError(
+                f"Trop de liens recette (maximum {MAX_RECIPE_LINKS}).",
+            )
+        if not isinstance(raw, str):
+            raise ValidationError("Chaque lien doit être une chaîne de caractères.")
+        u = raw.strip()[:MAX_RECIPE_URL_LEN]
+        if not u:
+            continue
+        parsed = urlparse(u)
+        if parsed.scheme not in RECIPE_LINK_SCHEMES:
+            raise ValidationError(
+                "URL non autorisée (utilisez uniquement http ou https).",
+            )
+        if not parsed.netloc:
+            raise ValidationError("URL invalide.")
+        if u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
 
 
 def validate_item_name(name) -> str:

@@ -59,6 +59,9 @@
       function applyList(data) {
         vm.list = data;
         vm.sections = data.sections || [];
+        if (vm.list && !Array.isArray(vm.list.recipe_links)) {
+          vm.list.recipe_links = [];
+        }
       }
       function load() {
         vm.loading = true;
@@ -123,6 +126,8 @@
       vm.importMessage = '';
       vm.importLoading = false;
       vm.quitoqueImportUrl = '';
+      vm.newRecipeLink = '';
+      vm.recipeNotesError = '';
       vm.deduplicateMessage = '';
       vm.editingListName = false;
       vm.listNameEdit = '';
@@ -298,6 +303,36 @@
           vm.importLoading = false;
         });
       };
+      function appendRecipeLinkAndSave(href) {
+        var u = (href || '').trim();
+        if (!u || !vm.list) return;
+        var cur = (vm.list.recipe_links || []).slice();
+        if (cur.indexOf(u) === -1) cur.push(u);
+        ListsApi.patchList(vm.listId, { recipe_links: cur }).then(function (data) {
+          vm.list.recipe_links = data.recipe_links || [];
+        }).catch(function () {});
+      }
+      vm.addRecipeLink = function () {
+        vm.recipeNotesError = '';
+        var u = (vm.newRecipeLink || '').trim();
+        if (!u) return;
+        var cur = (vm.list.recipe_links || []).slice();
+        if (cur.indexOf(u) === -1) cur.push(u);
+        ListsApi.patchList(vm.listId, { recipe_links: cur }).then(function (data) {
+          vm.list.recipe_links = data.recipe_links || [];
+          vm.newRecipeLink = '';
+        }).catch(function (res) {
+          vm.recipeNotesError = (res && res.data && res.data.error) || 'Lien refusé.';
+        });
+      };
+      vm.removeRecipeLink = function (idx) {
+        vm.recipeNotesError = '';
+        var cur = (vm.list.recipe_links || []).slice();
+        cur.splice(idx, 1);
+        ListsApi.patchList(vm.listId, { recipe_links: cur }).then(function (data) {
+          vm.list.recipe_links = data.recipe_links || [];
+        }).catch(function () {});
+      };
       vm.doQuitoqueImport = function () {
         vm.importMessage = '';
         var url = (vm.quitoqueImportUrl || '').trim();
@@ -314,6 +349,7 @@
             return;
           }
           applyImportedItems(items, items.length + ' article(s) importé(s) depuis Quitoque.');
+          appendRecipeLinkAndSave(url);
         }).catch(function (res) {
           var msg = (res && res.data && res.data.message) || 'Import Quitoque impossible.';
           vm.importMessage = msg;

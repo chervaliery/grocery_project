@@ -44,6 +44,7 @@
       <input type="text" class="form-control form-control-sm mb-2" style="max-width: 20rem;" placeholder="Notes (optionnel)" ng-model="vm.newItemNotes">
       <div class="d-flex align-items-center flex-wrap gap-2">
         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#importModal">Importer une liste</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#recipeNotesModal">Notes recettes</button>
         <button type="button" class="btn btn-outline-secondary btn-sm" ng-click="vm.deduplicate()">Dédupliquer</button>
         <span class="small text-success" ng-if="vm.deduplicateMessage">{{ vm.deduplicateMessage }}</span>
       </div>
@@ -76,6 +77,40 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" ng-disabled="vm.importLoading">Annuler</button>
             <button type="button" class="btn btn-primary" ng-click="vm.doImport()" ng-disabled="vm.importLoading">Importer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="recipeNotesModal" tabindex="-1" aria-labelledby="recipeNotesModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="recipeNotesModalLabel">Notes recettes</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted mb-2">Liens vers les recettes (Quitoque ou autres). Les liens sont ouverts dans un nouvel onglet.</p>
+            <div class="mb-3" ng-if="!vm.list.recipe_links || vm.list.recipe_links.length === 0">
+              <p class="small mb-0">Aucun lien pour l’instant. Ajoutez-en ci-dessous ou importez depuis Quitoque.</p>
+            </div>
+            <ul class="list-unstyled mb-3" ng-if="vm.list.recipe_links && vm.list.recipe_links.length">
+              <li class="mb-2 d-flex align-items-start gap-2" ng-repeat="link in vm.list.recipe_links track by $index">
+                <a ng-href="{{ link }}" target="_blank" rel="noopener noreferrer" class="text-break flex-grow-1">{{ link }}</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0 py-0 px-2" title="Retirer"
+                        ng-click="vm.removeRecipeLink($index)">×</button>
+              </li>
+            </ul>
+            <label class="form-label small" for="new-recipe-link">Ajouter un lien</label>
+            <div class="input-group input-group-sm">
+              <input type="url" class="form-control" id="new-recipe-link" placeholder="https://…"
+                     ng-model="vm.newRecipeLink" ng-keypress="$event.which === 13 && vm.addRecipeLink()"
+                     autocomplete="off">
+              <button type="button" class="btn btn-primary" ng-click="vm.addRecipeLink()">Ajouter</button>
+            </div>
+            <p class="small text-danger mt-2 mb-0" ng-if="vm.recipeNotesError">{{ vm.recipeNotesError }}</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
           </div>
         </div>
       </div>

@@ -15,12 +15,13 @@ from django.views.decorators.http import require_http_methods
 
 from lists_app.models import GroceryList, Item
 from lists_app.serializers import (
-    list_to_dict,
     list_detail_to_dict,
-    validate_list_name,
+    list_to_dict,
     validate_item_name,
-    validate_quantity,
+    validate_list_name,
     validate_notes,
+    validate_quantity,
+    validate_recipe_links,
 )
 from lists_app.services import item_service as item_svc
 from lists_app.services.quitoque_scraper import (
@@ -116,6 +117,12 @@ def _patch_list(request, list_id):
         gl.name = validate_list_name(body["name"])
     if "archived" in body:
         gl.archived = bool(body["archived"])
+    if "recipe_links" in body:
+        try:
+            gl.recipe_links = validate_recipe_links(body["recipe_links"])
+        except ValidationError as e:
+            msg = e.messages[0] if e.messages else "Liens recette invalides."
+            return _json_400(msg)
     gl.save()
     logger.info("api patch_list list_id=%s archived=%s", list_id, gl.archived)
     return JsonResponse(list_to_dict(gl))

@@ -45,6 +45,7 @@ class GroceryList(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     archived = models.BooleanField(default=False)
     position = models.PositiveIntegerField(default=0)
+    recipe_links = models.JSONField(default=list, blank=True)
 
     class Meta:
         ordering = ["-archived", "position", "-created_at"]

@@ -239,6 +239,51 @@ class ApiListsTest(TestCase):
         data = json.loads(response.content)
         self.assertEqual(data["name"], "Test")
         self.assertIn("sections", data)
+        self.assertEqual(data.get("recipe_links"), [])
+
+    def test_get_list_detail_includes_recipe_links(self):
+        gl = GroceryList.objects.create(
+            name="Test",
+            recipe_links=["https://www.example.com/r1"],
+        )
+        response = self.client.get(f"/api/lists/{gl.id}/")
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(
+            data.get("recipe_links"),
+            ["https://www.example.com/r1"],
+        )
+
+    def test_patch_recipe_links(self):
+        gl = GroceryList.objects.create(name="Test")
+        response = self.client.patch(
+            f"/api/lists/{gl.id}/",
+            data=json.dumps(
+                {
+                    "recipe_links": [
+                        "https://a.example/recipe",
+                        "https://b.example/other",
+                    ]
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.content)
+        self.assertEqual(len(data["recipe_links"]), 2)
+        gl.refresh_from_db()
+        self.assertEqual(len(gl.recipe_links), 2)
+
+    def test_patch_recipe_links_rejects_bad_scheme(self):
+        gl = GroceryList.objects.create(name="Test")
+        response = self.client.patch(
+            f"/api/lists/{gl.id}/",
+            data=json.dumps({"recipe_links": ["javascript:alert(1)"]}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        data = json.loads(response.content)
+        self.assertIn("error", data)
 
     def test_patch_list_archive(self):
         gl = GroceryList.objects.create(name="Test")
