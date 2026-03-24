@@ -34,6 +34,9 @@
         parseImport: function (listId, text) {
           return $http.post(base + '/lists/' + listId + '/parse-import/', { text: text }).then(function (r) { return r.data; });
         },
+        importQuitoque: function (listId, url) {
+          return $http.post(base + '/lists/' + listId + '/import-quitoque/', { url: url }).then(function (r) { return r.data; });
+        },
         deduplicateList: function (listId) {
           return $http.post(base + '/lists/' + listId + '/deduplicate/').then(function (r) { return r.data; });
         }

@@ -9,6 +9,11 @@ from channels.testing import WebsocketCommunicator
 from django.test import TestCase, Client, override_settings
 
 from lists_app.models import AccessToken, GroceryList, Item, Section, SectionKeyword
+from lists_app.services.quitoque_scraper import (
+    QuitoqueScraperError,
+    parse_ingredient_lis_from_html,
+    validate_recipe_url,
+)
 from lists_app.services.section_assigner import (
     assign_section,
     _match_keywords,
@@ -346,3 +351,82 @@ class WebSocketTest(TestCase):
 
         connected = asyncio.run(run())
         self.assertFalse(connected)
+
+
+QUITOQUE_HTML_FRAGMENT = """
+<div id="ingredients-recipe">
+  <div class="tab-pane show active" id="ingredients">
+    <ul class="ingredient-list">
+      <li class="mb-0">
+        <span class="bold">180 g</span>
+        <span>accras de morue créole</span>
+      </li>
+      <li class="mb-0">
+        <span class="bold">0.5</span>
+        <span>citron vert</span>
+      </li>
+    </ul>
+  </div>
+</div>
+"""
+
+
+class QuitoqueParserTest(TestCase):
+    def test_parse_ingredient_lis_from_html(self):
+        items = parse_ingredient_lis_from_html(QUITOQUE_HTML_FRAGMENT)
+        self.assertEqual(len(items), 2)
+        self.assertEqual(items[0]["name"], "accras de morue créole")
+        self.assertEqual(items[0]["quantity"], "180 g")
+        self.assertEqual(items[0]["notes"], "")
+        self.assertIsNone(items[0]["section_slug"])
+        self.assertEqual(items[1]["name"], "citron vert")
+        self.assertEqual(items[1]["quantity"], "0.5")
+
+    def test_validate_recipe_url_ok(self):
+        u = validate_recipe_url(
+            "https://www.quitoque.fr/products/accras-de-morue-pimentes-16733"
+        )
+        self.assertIn("quitoque.fr", u)
+
+    def test_validate_recipe_url_rejects_non_https(self):
+        with self.assertRaises(QuitoqueScraperError) as ctx:
+            validate_recipe_url("http://www.quitoque.fr/products/foo")
+        self.assertEqual(ctx.exception.status_hint, 400)
+
+    def test_validate_recipe_url_rejects_wrong_host(self):
+        with self.assertRaises(QuitoqueScraperError) as ctx:
+            validate_recipe_url("https://evil.example/products/foo")
+        self.assertEqual(ctx.exception.status_hint, 400)
+
+
+@override_settings(
+    SECRET_URL_AUTH_REQUIRED=False,
+    QUITOQUE_EMAIL="",
+    QUITOQUE_PASSWORD="",
+)
+class QuitoqueApiTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.grocery_list = GroceryList.objects.create(name="API Quitoque")
+
+    def test_import_quitoque_returns_503_without_credentials(self):
+        response = self.client.post(
+            f"/api/lists/{self.grocery_list.id}/import-quitoque/",
+            data=json.dumps(
+                {
+                    "url": "https://www.quitoque.fr/products/recette-test",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 503)
+        data = response.json()
+        self.assertIn("message", data)
+
+    def test_import_quitoque_returns_400_for_bad_url(self):
+        response = self.client.post(
+            f"/api/lists/{self.grocery_list.id}/import-quitoque/",
+            data=json.dumps({"url": "https://evil.example/foo"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)

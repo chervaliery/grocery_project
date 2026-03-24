@@ -153,6 +153,17 @@ LLM_API_URL = os.environ.get(
 LLM_MODEL = os.environ.get("LLM_MODEL", "Meta-Llama-3_3-70B-Instruct")
 LLM_TIMEOUT = int(os.environ.get("LLM_TIMEOUT", "30"))
 
+# Quitoque recipe import (Selenium + headless Firefox); credentials required for server-side login
+QUITOQUE_EMAIL = os.environ.get("QUITOQUE_EMAIL", "").strip()
+QUITOQUE_PASSWORD = os.environ.get("QUITOQUE_PASSWORD", "").strip()
+QUITOQUE_LOGIN_URL = os.environ.get(
+    "QUITOQUE_LOGIN_URL", "https://www.quitoque.fr/login"
+)
+QUITOQUE_ALLOWED_HOST = os.environ.get(
+    "QUITOQUE_ALLOWED_HOST", "www.quitoque.fr"
+).lower()
+QUITOQUE_IMPORT_TIMEOUT = int(os.environ.get("QUITOQUE_IMPORT_TIMEOUT", "60"))
+
 # Configurable logging: set LOG_LEVEL=INFO or LOG_LEVEL=DEBUG to enable informational/debug logs
 # Set LOG_FILE (e.g. /var/log/grocery_list/app.log) to also write logs to a file (production).
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "WARNING").upper()

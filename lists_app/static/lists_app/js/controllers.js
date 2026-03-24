@@ -122,6 +122,7 @@
       vm.importText = '';
       vm.importMessage = '';
       vm.importLoading = false;
+      vm.quitoqueImportUrl = '';
       vm.deduplicateMessage = '';
       vm.editingListName = false;
       vm.listNameEdit = '';
@@ -293,6 +294,29 @@
             return;
           }
           applyImportedItems(items, items.length + ' article(s) importé(s) (analyse locale).');
+        }).finally(function () {
+          vm.importLoading = false;
+        });
+      };
+      vm.doQuitoqueImport = function () {
+        vm.importMessage = '';
+        var url = (vm.quitoqueImportUrl || '').trim();
+        if (!url) {
+          vm.importMessage = 'Indiquez une URL Quitoque.';
+          return;
+        }
+        vm.importLoading = true;
+        vm.importMessage = 'Récupération depuis Quitoque…';
+        ListsApi.importQuitoque(vm.listId, url).then(function (data) {
+          var items = data.items || [];
+          if (items.length === 0) {
+            vm.importMessage = 'Aucun ingrédient trouvé.';
+            return;
+          }
+          applyImportedItems(items, items.length + ' article(s) importé(s) depuis Quitoque.');
+        }).catch(function (res) {
+          var msg = (res && res.data && res.data.message) || 'Import Quitoque impossible.';
+          vm.importMessage = msg;
         }).finally(function () {
           vm.importLoading = false;
         });

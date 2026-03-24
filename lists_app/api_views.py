@@ -22,8 +22,13 @@ from lists_app.serializers import (
     validate_quantity,
     validate_notes,
 )
-from lists_app.services.section_assigner import normalize_import_with_llm
 from lists_app.services import item_service as item_svc
+from lists_app.services.quitoque_scraper import (
+    QuitoqueScraperError,
+    fetch_quitoque_ingredients,
+    validate_recipe_url,
+)
+from lists_app.services.section_assigner import normalize_import_with_llm
 from lists_app.utils import parse_uuid, get_request_json
 
 logger = logging.getLogger(__name__)
@@ -148,6 +153,38 @@ def _parse_import(request, list_id):
             },
             status=503,
         )
+    return JsonResponse({"items": items})
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def _import_quitoque(request, list_id):
+    """POST /api/lists/<uuid>/import-quitoque/ - Body: {\"url\": \"https://...\" }."""
+    gl = _get_list_or_404(list_id)
+    if isinstance(gl, JsonResponse):
+        return gl
+    body, err = get_request_json(request)
+    if err is not None:
+        return err
+    url = (body.get("url") or "").strip()
+    try:
+        validate_recipe_url(url)
+    except QuitoqueScraperError as e:
+        return JsonResponse(
+            {"error": "bad_url", "message": str(e)}, status=e.status_hint
+        )
+    try:
+        items = fetch_quitoque_ingredients(url)
+    except QuitoqueScraperError as e:
+        return JsonResponse(
+            {"error": "quitoque_import_failed", "message": str(e)},
+            status=e.status_hint,
+        )
+    logger.info(
+        "api import_quitoque list_id=%s items_count=%d",
+        list_id,
+        len(items),
+    )
     return JsonResponse({"items": items})
 
 
@@ -418,6 +455,7 @@ def api_item_detail(request, list_id, item_id):
 
 # URL route names (urls.py references these)
 api_parse_import = _parse_import
+api_import_quitoque = _import_quitoque
 api_deduplicate = _deduplicate
 api_create_item = _create_item
 api_reorder = _reorder

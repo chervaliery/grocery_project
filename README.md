@@ -12,6 +12,7 @@ Application web de listes de courses pour usage personnel, conçue pour mobile. 
 - Cocher les articles achetés, masquer les cochés pour garder la liste lisible.
 - Réordonner les articles par glisser-déposer (poignée ⋮⋮) dans chaque section.
 - Mise à jour en temps réel sur tous les onglets / appareils ouverts sur la même liste.
+- Import Quitoque (optionnel) : depuis le modal d’import, coller l’URL d’une fiche recette sur **www.quitoque.fr** ; le serveur ouvre un Firefox headless, se connecte avec les identifiants définis en variables d’environnement, extrait les ingrédients « Dans votre box » et ajoute les articles comme pour un import classique.
 
 ## Prérequis
 
@@ -54,6 +55,12 @@ Variables d’environnement utiles :
 | `SECRET_URL_AUTH_REQUIRED` | (Optionnel) `true` / `false` (défaut : `true`). Si `false`, l'app et l'API sont accessibles sans lien secret (développement ou si la protection est gérée autrement). |
 | `REDIS_URL`    | (Optionnel) Pour production avec Redis comme channel layer (ex. `redis://localhost:6379/0`). |
 | `DATABASE_URL` | (Production) URL de la base de données. Si absent, SQLite est utilisée (`db.sqlite3`). Pour MariaDB/MySQL : `mysql://utilisateur:mot_de_passe@localhost:3306/nom_base`. Les caractères spéciaux dans le mot de passe doivent être encodés en URL. |
+| `QUITOQUE_EMAIL` / `QUITOQUE_PASSWORD` | (Optionnel) Compte Quitoque utilisé par le serveur pour l’import recette. Sans ces variables, le bouton « Importer depuis Quitoque » répondra avec une erreur côté API. |
+| `QUITOQUE_LOGIN_URL` | (Optionnel) URL de la page de connexion (défaut : `https://www.quitoque.fr/login`). |
+| `QUITOQUE_ALLOWED_HOST` | (Optionnel) Hôte autorisé pour les URL recettes (défaut : `www.quitoque.fr`). |
+| `QUITOQUE_IMPORT_TIMEOUT` | (Optionnel) Timeout Selenium en secondes (défaut : `60`). |
+
+**Import Quitoque (serveur)** : installer **Firefox** (ou `firefox-esr`) et laisser Selenium gérer **geckodriver** (Selenium 4). Toutes les requêtes d’import passent par ce compte : en cas de changement de formulaire de login, de CAPTCHA ou de détection anti-bot sur Quitoque, la fonctionnalité peut nécessiter une mise à jour du code.
 
 Par défaut (développement, sans `DATABASE_URL`), l’application utilise SQLite. En production, définissez `DATABASE_URL` avec une URL MariaDB/MySQL pour utiliser un serveur dédié.
 
@@ -90,7 +97,7 @@ Procédure complète pour déployer en production avec logs dans `/var/log/groce
 
 ```bash
 sudo apt update
-sudo apt install -y python3.12 python3.12-venv apache2 redis-server mariadb-server libmariadb-dev pkg-config
+sudo apt install -y python3.12 python3.12-venv apache2 redis-server mariadb-server libmariadb-dev pkg-config firefox
 sudo a2enmod proxy proxy_http proxy_wstunnel ssl headers
 sudo systemctl enable apache2
 sudo systemctl enable mariadb

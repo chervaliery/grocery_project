@@ -63,6 +63,14 @@
             <textarea class="form-control" rows="8" placeholder="Collez une liste (libre). Ex. :&#10;Œufs : 4&#10;Pecorino romano : 100 g&#10;Poivre noir"
                       ng-model="vm.importText" ng-disabled="vm.importLoading"></textarea>
             <p class="small text-muted mt-2 mb-0" ng-if="!vm.importLoading">Collez une liste en texte libre ; elle sera analysée pour en extraire les articles (nom, quantité, section).</p>
+            <hr class="my-3">
+            <p class="small fw-semibold mb-1">Ou importer depuis Quitoque</p>
+            <label class="form-label small text-muted mb-1" for="quitoque-import-url">URL de la fiche recette (www.quitoque.fr)</label>
+            <input type="url" class="form-control form-control-sm mb-2" id="quitoque-import-url"
+                   placeholder="https://www.quitoque.fr/products/... "
+                   ng-model="vm.quitoqueImportUrl" ng-disabled="vm.importLoading" autocomplete="off">
+            <button type="button" class="btn btn-outline-primary btn-sm"
+                    ng-click="vm.doQuitoqueImport()" ng-disabled="vm.importLoading">Importer depuis Quitoque</button>
             <p class="small text-warning mt-1 mb-0" ng-if="vm.importMessage">{{ vm.importMessage }}</p>
           </div>
           <div class="modal-footer">
