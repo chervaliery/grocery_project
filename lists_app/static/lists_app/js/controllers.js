@@ -105,11 +105,26 @@
           if (!found) load();
         }
         if (msg.action === 'item_updated' && msg.item) {
+          var moved = true;
           vm.sections.forEach(function (s) {
             (s.items || []).forEach(function (it, i) {
-              if (it.id === msg.item.id) s.items[i] = msg.item;
+              if (it.id !== msg.item.id) return;
+              if (s.section_id === msg.item.section_id) {
+                s.items[i] = msg.item;
+                moved = false;
+              } else {
+                s.items.splice(i, 1);
+              }
             });
           });
+          if (moved) {
+            vm.sections.forEach(function (s) {
+              if (s.section_id === msg.item.section_id) {
+                s.items = s.items || [];
+                s.items.push(msg.item);
+              }
+            });
+          }
         }
         if (msg.action === 'item_deleted' && msg.item_id) {
           vm.sections.forEach(function (s) {
@@ -178,6 +193,7 @@
         vm.editItemName = item.name || '';
         vm.editItemQuantity = item.quantity || '';
         vm.editItemNotes = item.notes || '';
+        vm.editItemSectionId = item.section_id;
       };
       vm.cancelEditItem = function () {
         vm.editingItemId = null;
@@ -190,7 +206,8 @@
           item_id: item.id,
           name: name,
           quantity: (vm.editItemQuantity || '').trim(),
-          notes: (vm.editItemNotes || '').trim()
+          notes: (vm.editItemNotes || '').trim(),
+          section_id: vm.editItemSectionId
         });
         vm.editingItemId = null;
       };

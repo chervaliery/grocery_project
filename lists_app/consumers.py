@@ -206,6 +206,7 @@ class ListConsumer(AsyncWebsocketConsumer):
                 notes=data.get("notes"),
                 checked=data.get("checked"),
                 position=data.get("position"),
+                section_id=data.get("section_id"),
             )
             if item:
                 payload = {"action": "item_updated", "item": item}
