@@ -257,7 +257,8 @@ body {
 
 .form-control,
 input.form-control,
-textarea.form-control {
+textarea.form-control,
+.form-select {
   border-radius: var(--app-radius-sm);
   border-color: var(--app-border);
   background-color: var(--app-card-bg) !important;
@@ -285,7 +286,8 @@ textarea.form-control:focus {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .form-control,
   :root:not([data-theme="light"]) input.form-control,
-  :root:not([data-theme="light"]) textarea.form-control {
+  :root:not([data-theme="light"]) textarea.form-control,
+  :root:not([data-theme="light"]) .form-select {
     background-color: var(--app-card-bg) !important;
     color: var(--app-text) !important;
   }
@@ -298,6 +300,7 @@ textarea.form-control:focus {
 [data-theme="dark"] .form-control,
 [data-theme="dark"] input.form-control,
 [data-theme="dark"] textarea.form-control,
+[data-theme="dark"] .form-select,
 [data-theme="dark"] .form-control:focus {
   background-color: var(--app-card-bg) !important;
   color: var(--app-text) !important;
