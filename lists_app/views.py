@@ -3,6 +3,7 @@ Views for lists_app: SPA shell, gate (secret URL), auth-required page, API (in a
 """
 
 import logging
+from pathlib import Path
 
 from django.shortcuts import redirect, render
 from django.views.generic import TemplateView
@@ -14,12 +15,37 @@ logger = logging.getLogger(__name__)
 SESSION_ACCESS_TOKEN_ID_KEY = "secret_url_token_id"
 
 
+def _compute_asset_version():
+    """Newest mtime across static JS/CSS/partials; changes on every deploy.
+    Computed once at import — Daphne restarts on deploy, so it refreshes then."""
+    base = Path(__file__).resolve().parent / "static" / "lists_app"
+    latest = 0.0
+    for sub in ("js", "css", "partials"):
+        d = base / sub
+        if not d.is_dir():
+            continue
+        for f in d.iterdir():
+            try:
+                latest = max(latest, f.stat().st_mtime)
+            except OSError:
+                pass
+    return str(int(latest))
+
+
+ASSET_VERSION = _compute_asset_version()
+
+
 class SPATemplateView(TemplateView):
     template_name = "lists_app/index.html"
 
     def get(self, request, *args, **kwargs):
         logger.debug("spa view request path=%s", request.path)
         return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["asset_version"] = ASSET_VERSION
+        return ctx
 
 
 def gate_view(request, token):
